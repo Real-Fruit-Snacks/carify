@@ -69,9 +69,7 @@ If a USB stick with the volume label **`MOVIES`** is plugged in, the result is c
 4. Keeps only the first video and first audio stream; subtitles and extra audio tracks are dropped.
 5. Writes an MP4 with `-movflags +faststart` so the head unit can start playback before reading the whole file.
 
-## Tested on
-
-- *(add your vehicle and Uconnect version here, e.g. "2019 Pacifica, Uconnect 4C")*
+## Uconnect Behaviour
 
 Uconnect behaviour varies by model year and head-unit generation. The 720p H.264 + AAC stereo target is the common denominator that has worked across generations; if your unit handles 1080p, raise the `1280` limit in the script.
 
