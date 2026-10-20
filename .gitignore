@@ -1,0 +1,17 @@
+# Video files — test inputs/outputs never belong in the repo
+*.mp4
+*.mkv
+*.mov
+*.avi
+*.m4v
+*.webm
+*.ts
+*.wmv
+
+# OS and editor clutter
+Thumbs.db
+desktop.ini
+.DS_Store
+*.swp
+.vscode/
+.idea/

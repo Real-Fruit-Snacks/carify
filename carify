@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# carify — make a video play on a Chrysler/Jeep/Dodge/Ram Uconnect head unit
+# (H.264 8-bit 720p-or-smaller + AAC stereo, MP4 with faststart).
+# Streams that already comply are copied, not re-encoded.
+set -euo pipefail
+
+usage() {
+    cat <<USAGE
+usage: carify [options] <video> [output.mp4]
+
+options:
+  -f, --force    overwrite the output file if it already exists
+      --no-usb   don't copy the result to a USB stick labelled MOVIES
+  -h, --help     show this help
+
+output defaults to <video-name>-car.mp4 next to the input.
+USAGE
+}
+
+force=0
+usb=1
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -h|--help) usage; exit 0 ;;
+        -f|--force) force=1; shift ;;
+        --no-usb) usb=0; shift ;;
+        --) shift; break ;;
+        -*) echo "unknown option: $1" >&2; usage >&2; exit 1 ;;
+        *) break ;;
+    esac
+done
+[[ $# -ge 1 ]] || { usage >&2; exit 1; }
+
+in="$1"
+out="${2:-${in%.*}-car.mp4}"
+
+for tool in ffmpeg ffprobe; do
+    command -v "$tool" >/dev/null || { echo "$tool not found; install ffmpeg first" >&2; exit 1; }
+done
+[[ -f "$in" ]] || { echo "file not found: $in" >&2; exit 1; }
+if [[ -e "$out" && $force -eq 0 ]]; then
+    echo "output already exists: $out (use --force to overwrite)" >&2; exit 1
+fi
+
+get() { ffprobe -v error -select_streams "$1" -show_entries "stream=$2" -of csv=p=0 "$in" | head -n1; }
+
+vcodec=$(get v:0 codec_name); vpix=$(get v:0 pix_fmt); vprof=$(get v:0 profile); vwidth=$(get v:0 width)
+acodec=$(get a:0 codec_name); achan=$(get a:0 channels)
+[[ -n "$vcodec" ]] || { echo "no video stream found in $in" >&2; exit 1; }
+[[ -n "$acodec" ]] || { echo "no audio stream found in $in" >&2; exit 1; }
+echo "probed: video=$vcodec/$vpix/${vprof:-?} ${vwidth:-?}px  audio=$acodec ${achan:-?}ch"
+
+# Video is fine as-is only if it's 8-bit H.264 in a profile the car decodes, at 720p or less.
+vopts=(-c:v copy)
+if [[ "$vcodec" != "h264" || "$vpix" != "yuv420p" || "${vwidth:-9999}" -gt 1280 ]] \
+   || ! [[ "$vprof" =~ ^(Constrained\ Baseline|Baseline|Main|High)$ ]]; then
+    echo "video needs re-encode -> H.264 8-bit 720p (this one takes a while)"
+    vopts=(-c:v libx264 -preset veryfast -profile:v high -pix_fmt yuv420p -vf "scale='min(1280,iw)':-2" -crf 20)
+fi
+
+# Audio is fine as-is only if it's AAC with at most two channels.
+aopts=(-c:a copy)
+if [[ "$acodec" != "aac" || "${achan:-9}" -gt 2 ]]; then
+    echo "audio needs re-encode -> AAC stereo"
+    aopts=(-c:a aac -ac 2 -b:a 160k)
+fi
+
+ffmpeg -hide_banner -y -i "$in" -map 0:v:0 -map 0:a:0 "${vopts[@]}" "${aopts[@]}" -movflags +faststart "$out"
+echo "wrote: $out"
+
+# Copy onto a USB stick mounted as MOVIES (Linux udisks path, then macOS).
+if [[ $usb -eq 1 ]]; then
+    for dest in "/run/media/${USER}/MOVIES" "/media/${USER}/MOVIES" "/Volumes/MOVIES"; do
+        if [[ -d "$dest" ]]; then
+            echo "copying to USB stick: $dest"
+            cp -v "$out" "$dest/"
+            break
+        fi
+    done
+fi
