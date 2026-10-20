@@ -6,7 +6,7 @@ Uconnect is picky: it wants 8-bit H.264 (Baseline/Main/High profile, 720p or sma
 
 Two drop-in scripts, same behaviour:
 
-| | |
+| Name| Description |
 |---|---|
 | `carify` | bash — Linux, macOS, WSL |
 | `carify.ps1` | PowerShell — Windows |
