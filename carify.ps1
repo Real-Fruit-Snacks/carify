@@ -72,24 +72,30 @@ foreach ($tool in 'ffmpeg', 'ffprobe') {
     }
 }
 
-if (-not (Test-Path -LiteralPath $In -PathType Leaf)) { Exit-Carify "file not found: $In" }
-# Plain .NET path handling: PowerShell's own resolvers read a colon in a Linux
-# file name ("a: b.mkv") as a drive.
+# Files are handled with .NET, not Test-Path/Move-Item: PowerShell's providers
+# read a colon in a Linux file name ("a: b.mkv") as a drive and fail.
 $here = (Get-Location -PSProvider FileSystem).ProviderPath
-$In = [IO.Path]::GetFullPath([IO.Path]::Combine($here, $In))
+function Get-FullPath([string]$Path) {
+    try { [IO.Path]::GetFullPath([IO.Path]::Combine($here, $Path)) } catch { $null }
+}
+$inArg = $In
+$In = Get-FullPath $In
+if (-not $In -or -not [IO.File]::Exists($In)) { Exit-Carify "file not found: $inArg" }
 if (-not $Out) {
     $stem = [IO.Path]::GetFileNameWithoutExtension($In)
     if (-not $stem) { $stem = [IO.Path]::GetFileName($In) }
     $Out = [IO.Path]::Combine([IO.Path]::GetDirectoryName($In), $stem + '-car.mp4')
 }
-$Out = [IO.Path]::GetFullPath([IO.Path]::Combine($here, $Out))
+$outArg = $Out
+$Out = Get-FullPath $Out
+if (-not $Out) { Exit-Carify "not a usable output path: $outArg" }
 $outDir = [IO.Path]::GetDirectoryName($Out)
-if (-not (Test-Path -LiteralPath $outDir -PathType Container)) { Exit-Carify "output folder does not exist: $outDir" }
+if (-not [IO.Directory]::Exists($outDir)) { Exit-Carify "output folder does not exist: $outDir" }
 
 $isWin = $env:OS -eq 'Windows_NT'
 $cmp = if ($isWin) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
 if ([string]::Equals($In, $Out, $cmp)) { Exit-Carify "output would overwrite the input: $Out" }
-if ((Test-Path -LiteralPath $Out) -and -not $Force) {
+if (([IO.File]::Exists($Out) -or [IO.Directory]::Exists($Out)) -and -not $Force) {
     Exit-Carify "output already exists: $Out (use -Force to overwrite)"
 }
 
@@ -168,10 +174,11 @@ try {
         -map '0:V:0' @vopts @aopts -sn -dn -map_metadata 0 `
         -movflags '+faststart' -f mp4 "file:$tmp"
     if ($LASTEXITCODE -ne 0) { Exit-Carify "ffmpeg failed (exit $LASTEXITCODE)" $LASTEXITCODE }
-    Move-Item -LiteralPath $tmp -Destination $Out -Force -ErrorAction Stop
+    if ([IO.File]::Exists($Out)) { [IO.File]::Delete($Out) }
+    [IO.File]::Move($tmp, $Out)
 }
 finally {
-    if (Test-Path -LiteralPath $tmp) { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue }
+    if ([IO.File]::Exists($tmp)) { try { [IO.File]::Delete($tmp) } catch { $null = $_ } }
 }
 
 $size = (New-Object IO.FileInfo $Out).Length
@@ -183,7 +190,8 @@ if ($NoUsb) { exit 0 }
 
 $dest = $null; $fs = $null
 if ($env:CARIFY_USB_DIR) {
-    if (Test-Path -LiteralPath $env:CARIFY_USB_DIR -PathType Container) { $dest = $env:CARIFY_USB_DIR }
+    $usbDir = Get-FullPath $env:CARIFY_USB_DIR
+    if ($usbDir -and [IO.Directory]::Exists($usbDir)) { $dest = $usbDir }
     else { Write-Status 'warn' "CARIFY_USB_DIR is not a folder: $env:CARIFY_USB_DIR" 'warn' }
 }
 elseif ($isWin) {
@@ -194,7 +202,7 @@ elseif ($isWin) {
 else {
     $user = if ($env:USER) { $env:USER } else { & id -un }
     foreach ($p in "/run/media/$user/MOVIES", "/media/$user/MOVIES", '/media/MOVIES', '/Volumes/MOVIES') {
-        if (Test-Path -LiteralPath $p -PathType Container) { $dest = $p; break }
+        if ([IO.Directory]::Exists($p)) { $dest = $p; break }
     }
 }
 if (-not $dest) { exit 0 }
@@ -204,9 +212,10 @@ if ($fs -eq 'FAT32' -and $size -gt 4294967295) {
 }
 Write-Status 'usb' "copying to $dest"
 $target = [IO.Path]::Combine($dest, [IO.Path]::GetFileName($Out))
-try { Copy-Item -LiteralPath $Out -Destination $target -Force -ErrorAction Stop }
+try { [IO.File]::Copy($Out, $target, $true) }
 catch {
-    Remove-Item -LiteralPath $target -Force -ErrorAction SilentlyContinue
-    Exit-Carify "copy to $dest failed: $($_.Exception.Message)"
+    $why = if ($_.Exception.InnerException) { $_.Exception.InnerException.Message } else { $_.Exception.Message }
+    try { [IO.File]::Delete($target) } catch { $null = $_ }
+    Exit-Carify "copy to $dest failed: $why"
 }
 Write-Status 'usb' 'done; eject the stick before removing it' 'ok'
