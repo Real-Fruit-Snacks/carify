@@ -10,8 +10,9 @@ permissions:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: shellcheck
         run: shellcheck carify install.sh tests/run.sh
       - name: PSScriptAnalyzer
@@ -29,11 +30,16 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: ffmpeg (Ubuntu)
         if: runner.os == 'Linux'
-        run: sudo apt-get update -q && sudo apt-get install -yq ffmpeg
+        # Skip the man-db index rebuild, which can stall apt for 40+ minutes.
+        run: |
+          sudo rm -f /var/lib/man-db/auto-update
+          sudo apt-get update -q
+          sudo apt-get install -yq --no-install-recommends ffmpeg
       - name: ffmpeg (macOS)
         if: runner.os == 'macOS'
         run: brew install ffmpeg
@@ -47,11 +53,12 @@ jobs:
 
   windows:
     runs-on: windows-latest
+    timeout-minutes: 20
     defaults:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: ffmpeg
         run: choco install ffmpeg -y --no-progress
       - name: PowerShell 7
