@@ -1,80 +1,214 @@
 #!/usr/bin/env bash
-# carify — make a video play on a Chrysler/Jeep/Dodge/Ram Uconnect head unit
-# (H.264 8-bit 720p-or-smaller + AAC stereo, MP4 with faststart).
-# Streams that already comply are copied, not re-encoded.
+# carify - convert a video so it plays from USB on a Uconnect head unit.
+# Target: H.264 8-bit (Baseline/Main/High, level <= 4.1, fits 1280x720),
+# AAC stereo, MP4 with faststart. Streams that already comply are copied.
+# https://github.com/Real-Fruit-Snacks/carify - MIT
 set -euo pipefail
+
+CARIFY_VERSION="1.1.0"
 
 usage() {
     cat <<USAGE
 usage: carify [options] <video> [output.mp4]
 
 options:
-  -f, --force    overwrite the output file if it already exists
-      --no-usb   don't copy the result to a USB stick labelled MOVIES
-  -h, --help     show this help
+  -f, --force             overwrite the output file if it already exists
+      --max-height <px>   largest frame height to allow (default 720;
+                          width limit is height x 16/9)
+      --no-usb            don't copy the result to a USB stick labelled MOVIES
+  -V, --version           print the version
+  -h, --help              show this help
 
 output defaults to <video-name>-car.mp4 next to the input.
+environment:
+  CARIFY_USB_DIR   copy here instead of looking for a stick labelled MOVIES
+  CARIFY_THEME     dayshift on light terminals (default nightshift)
+  NO_COLOR         set to anything for plain output
 USAGE
 }
 
+# --- output --------------------------------------------------------------
+# Nightshift/Dayshift palette (RFS). Status goes to stderr; colour only on a TTY.
+c_tag='' c_ok='' c_warn='' c_err='' c_mute='' c_off=''
+if [[ -t 2 && -z "${NO_COLOR:-}" && "${TERM:-}" != dumb ]]; then
+    theme="${CARIFY_THEME:-}"
+    if [[ -z "$theme" ]]; then
+        case "${COLORFGBG:-}" in *\;7|*\;15) theme=dayshift ;; *) theme=nightshift ;; esac
+    fi
+    if [[ "${COLORTERM:-}" == truecolor || "${COLORTERM:-}" == 24bit ]]; then
+        if [[ "$theme" == dayshift ]]; then
+            c_tag=$'\e[38;2;196;63;17m'  c_ok=$'\e[38;2;22;122;78m'   c_warn=$'\e[38;2;149;99;0m'
+            c_err=$'\e[38;2;176;32;48m'  c_mute=$'\e[38;2;107;111;120m'
+        else
+            c_tag=$'\e[38;2;255;106;61m' c_ok=$'\e[38;2;61;220;151m'  c_warn=$'\e[38;2;255;194;71m'
+            c_err=$'\e[38;2;255;110;122m' c_mute=$'\e[38;2;138;143;153m'
+        fi
+    else
+        if [[ "$theme" == dayshift ]]; then
+            c_tag=$'\e[38;5;166m' c_ok=$'\e[38;5;29m'  c_warn=$'\e[38;5;136m' c_err=$'\e[38;5;124m' c_mute=$'\e[38;5;243m'
+        else
+            c_tag=$'\e[38;5;209m' c_ok=$'\e[38;5;79m'  c_warn=$'\e[38;5;215m' c_err=$'\e[38;5;210m' c_mute=$'\e[38;5;245m'
+        fi
+    fi
+    c_off=$'\e[0m'
+fi
+
+say()  { printf '%s%-6s%s %s\n' "$c_tag"  "$1" "$c_off" "$2" >&2; }
+ok()   { printf '%s%-6s%s %s\n' "$c_ok"   "$1" "$c_off" "$2" >&2; }
+warn() { printf '%s%-6s%s %s\n' "$c_warn" "warn"  "$c_off" "$1" >&2; }
+die()  { printf '%s%-6s%s %s\n' "$c_err"  "error" "$c_off" "$1" >&2; exit "${2:-1}"; }
+note() { printf '%s       %s%s\n' "$c_mute" "$1" "$c_off" >&2; }
+
+# --- arguments -----------------------------------------------------------
 force=0
 usb=1
+max_h=720
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -h|--help) usage; exit 0 ;;
+        -V|--version) echo "carify $CARIFY_VERSION"; exit 0 ;;
         -f|--force) force=1; shift ;;
         --no-usb) usb=0; shift ;;
+        --max-height) [[ $# -ge 2 ]] || die "--max-height needs a value"; max_h="$2"; shift 2 ;;
+        --max-height=*) max_h="${1#*=}"; shift ;;
         --) shift; break ;;
-        -*) echo "unknown option: $1" >&2; usage >&2; exit 1 ;;
+        -?*) printf 'unknown option: %s\n' "$1" >&2; usage >&2; exit 1 ;;
         *) break ;;
     esac
 done
-[[ $# -ge 1 ]] || { usage >&2; exit 1; }
+[[ $# -ge 1 && $# -le 2 ]] || { usage >&2; exit 1; }
+[[ "$max_h" =~ ^[0-9]+$ && "$max_h" -ge 144 ]] || die "--max-height must be a number >= 144"
+max_h=$(( max_h / 2 * 2 ))
+max_w=$(( (max_h * 16 / 9 + 1) / 2 * 2 ))
 
 in="$1"
-out="${2:-${in%.*}-car.mp4}"
+if [[ $# -ge 2 ]]; then
+    out="$2"
+else
+    in_dir=$(dirname -- "$in"); in_base=$(basename -- "$in")
+    stem="${in_base%.*}"; [[ -n "$stem" ]] || stem="$in_base"
+    out="$in_dir/$stem-car.mp4"
+fi
 
 for tool in ffmpeg ffprobe; do
-    command -v "$tool" >/dev/null || { echo "$tool not found; install ffmpeg first" >&2; exit 1; }
+    command -v "$tool" >/dev/null || die "$tool not found; install ffmpeg first"
 done
-[[ -f "$in" ]] || { echo "file not found: $in" >&2; exit 1; }
+[[ -f "$in" ]] || die "file not found: $in"
+[[ -d "$(dirname -- "$out")" ]] || die "output folder does not exist: $(dirname -- "$out")"
+
+# Absolute path without needing GNU realpath (macOS ships bash 3.2 and no -f).
+abspath() { local d; d=$(cd -- "$(dirname -- "$1")" && pwd -P) && printf '%s/%s\n' "$d" "$(basename -- "$1")"; }
+[[ "$(abspath "$in")" != "$(abspath "$out")" ]] || die "output would overwrite the input: $out"
 if [[ -e "$out" && $force -eq 0 ]]; then
-    echo "output already exists: $out (use --force to overwrite)" >&2; exit 1
+    die "output already exists: $out (use --force to overwrite)"
 fi
 
-get() { ffprobe -v error -select_streams "$1" -show_entries "stream=$2" -of csv=p=0 "$in" | head -n1; }
+# --- probe ---------------------------------------------------------------
+# V (capital) skips cover art stored as a video stream. file: stops ffmpeg
+# treating "-name" or "name:with:colons" as an option or protocol.
+probe() {
+    ffprobe -v error -select_streams "$1" \
+        -show_entries stream=codec_name,pix_fmt,profile,level,width,height,color_transfer,channels \
+        -of default=noprint_wrappers=1 "file:$in"
+}
+vinfo=$(probe V:0) || die "ffprobe could not read $in"
+ainfo=$(probe a:0) || die "ffprobe could not read $in"
 
-vcodec=$(get v:0 codec_name); vpix=$(get v:0 pix_fmt); vprof=$(get v:0 profile); vwidth=$(get v:0 width)
-acodec=$(get a:0 codec_name); achan=$(get a:0 channels)
-[[ -n "$vcodec" ]] || { echo "no video stream found in $in" >&2; exit 1; }
-[[ -n "$acodec" ]] || { echo "no audio stream found in $in" >&2; exit 1; }
-echo "probed: video=$vcodec/$vpix/${vprof:-?} ${vwidth:-?}px  audio=$acodec ${achan:-?}ch"
+vcodec='' vpix='' vprof='' vlevel='' vwidth='' vheight='' vtrc='' acodec='' achan=''
+while IFS='=' read -r k v; do
+    case "$k" in
+        codec_name) vcodec="$v" ;; pix_fmt) vpix="$v" ;; profile) vprof="$v" ;;
+        level) vlevel="$v" ;; width) vwidth="$v" ;; height) vheight="$v" ;;
+        color_transfer) vtrc="$v" ;;
+    esac
+done <<< "$vinfo"
+while IFS='=' read -r k v; do
+    case "$k" in codec_name) acodec="$v" ;; channels) achan="$v" ;; esac
+done <<< "$ainfo"
 
-# Video is fine as-is only if it's 8-bit H.264 in a profile the car decodes, at 720p or less.
+[[ -n "$vcodec" ]] || die "no video stream found in $in"
+num() { [[ "$1" =~ ^[0-9]+$ ]] && printf '%s' "$1" || printf '%s' "$2"; }
+vwidth=$(num "$vwidth" 99999); vheight=$(num "$vheight" 99999)
+vlevel=$(num "$vlevel" 999);   achan=$(num "$achan" 99)
+
+if [[ -n "$acodec" ]]; then
+    say probe "video $vcodec/$vpix/${vprof:-?} ${vwidth}x${vheight}  audio $acodec ${achan}ch"
+else
+    say probe "video $vcodec/$vpix/${vprof:-?} ${vwidth}x${vheight}  audio none"
+fi
+
+# --- decide --------------------------------------------------------------
+# Video is copied only if it's 8-bit 4:2:0 H.264 in a profile and level the
+# head unit decodes, and the frame already fits the size box.
 vopts=(-c:v copy)
-if [[ "$vcodec" != "h264" || "$vpix" != "yuv420p" || "${vwidth:-9999}" -gt 1280 ]] \
+if [[ "$vcodec" != h264 || "$vpix" != yuv420p || "$vlevel" -gt 41 \
+      || "$vwidth" -gt "$max_w" || "$vheight" -gt "$max_h" ]] \
    || ! [[ "$vprof" =~ ^(Constrained\ Baseline|Baseline|Main|High)$ ]]; then
-    echo "video needs re-encode -> H.264 8-bit 720p (this one takes a while)"
-    vopts=(-c:v libx264 -preset veryfast -profile:v high -pix_fmt yuv420p -vf "scale='min(1280,iw)':-2" -crf 20)
+    say video "re-encode to H.264 High 8-bit, fits ${max_w}x${max_h} (slow)"
+    vopts=(-c:v libx264 -preset veryfast -crf 20 -profile:v high -level:v 4.1 -pix_fmt yuv420p
+           -vf "scale=w='min($max_w,iw)':h='min($max_h,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2")
+else
+    ok video "copy"
+fi
+case "$vtrc" in
+    smpte2084|arib-std-b67) warn "HDR source ($vtrc); colours will look washed out, carify does not tone-map" ;;
+esac
+
+# Audio is copied only if it's AAC with at most two channels.
+if [[ -z "$acodec" ]]; then
+    warn "no audio stream; the output will be silent"
+    aopts=(-an)
+elif [[ "$acodec" != aac || "$achan" -gt 2 ]]; then
+    say audio "re-encode to AAC stereo 160k"
+    aopts=(-map 0:a:0 -c:a aac -ac 2 -b:a 160k)
+else
+    ok audio "copy"
+    aopts=(-map 0:a:0 -c:a copy)
 fi
 
-# Audio is fine as-is only if it's AAC with at most two channels.
-aopts=(-c:a copy)
-if [[ "$acodec" != "aac" || "${achan:-9}" -gt 2 ]]; then
-    echo "audio needs re-encode -> AAC stereo"
-    aopts=(-c:a aac -ac 2 -b:a 160k)
+# --- encode --------------------------------------------------------------
+# Write to a hidden temp file and rename, so an interrupted run never leaves
+# a half-written movie-car.mp4 behind.
+out_dir=$(dirname -- "$out")
+tmp="$out_dir/.$(basename -- "$out").part"
+trap 'rm -f -- "$tmp"' EXIT
+trap 'exit 130' INT TERM
+
+if ! ffmpeg -hide_banner -nostdin -loglevel warning -stats -y -i "file:$in" \
+        -map 0:V:0 "${vopts[@]}" "${aopts[@]}" -sn -dn -map_metadata 0 \
+        -movflags +faststart -f mp4 "file:$tmp"; then
+    die "ffmpeg failed"
 fi
+mv -f -- "$tmp" "$out"
 
-ffmpeg -hide_banner -y -i "$in" -map 0:v:0 -map 0:a:0 "${vopts[@]}" "${aopts[@]}" -movflags +faststart "$out"
-echo "wrote: $out"
+size=$(wc -c < "$out" | tr -d ' ')
+if [[ "$size" -ge 1048576 ]]; then human="$(( size / 1048576 )) MB"; else human="$(( size / 1024 )) KB"; fi
+ok wrote "$out ($human)"
 
-# Copy onto a USB stick mounted as MOVIES (Linux udisks path, then macOS).
+# --- usb -----------------------------------------------------------------
+# A stick with volume label MOVIES: udisks (Linux), older Linux, macOS.
+# CARIFY_USB_DIR replaces the search with one folder.
 if [[ $usb -eq 1 ]]; then
-    for dest in "/run/media/${USER}/MOVIES" "/media/${USER}/MOVIES" "/Volumes/MOVIES"; do
-        if [[ -d "$dest" ]]; then
-            echo "copying to USB stick: $dest"
-            cp -v "$out" "$dest/"
-            break
+    user="${USER:-$(id -un)}"
+    if [[ -n "${CARIFY_USB_DIR:-}" ]]; then
+        dests=("$CARIFY_USB_DIR")
+        [[ -d "$CARIFY_USB_DIR" ]] || warn "CARIFY_USB_DIR is not a folder: $CARIFY_USB_DIR"
+    else
+        dests=("/run/media/$user/MOVIES" "/media/$user/MOVIES" "/media/MOVIES" "/Volumes/MOVIES")
+    fi
+    for dest in "${dests[@]}"; do
+        [[ -d "$dest" ]] || continue
+        say usb "copying to $dest"
+        target="$dest/$(basename -- "$out")"
+        if ! cp -- "$out" "$target"; then
+            rm -f -- "$target"
+            if [[ "$size" -gt 4294967295 ]]; then
+                die "copy failed; FAT32 sticks cap files at 4 GB. Reformat the stick as exFAT or use a lower --max-height"
+            fi
+            die "copy to $dest failed"
         fi
+        sync
+        ok usb "done; safe to remove the stick"
+        break
     done
 fi

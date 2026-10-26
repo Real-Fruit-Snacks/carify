@@ -1,0 +1,60 @@
+name: test
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        run: shellcheck carify install.sh tests/run.sh
+      - name: PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module PSScriptAnalyzer -Scope CurrentUser
+          $found = 'carify.ps1', 'install.ps1' | ForEach-Object { Invoke-ScriptAnalyzer -Path $_ -Severity Warning,Error -ExcludeRule PSAvoidUsingWriteHost }
+          $found | Format-Table -AutoSize
+          if ($found) { exit 1 }
+
+  bash:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: ffmpeg (Ubuntu)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -q && sudo apt-get install -yq ffmpeg
+      - name: ffmpeg (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ffmpeg
+      - run: tests/run.sh bash
+      - name: macOS /bin/bash 3.2
+        if: runner.os == 'macOS'
+        run: CARIFY_BASH=/bin/bash /bin/bash tests/run.sh bash
+      - name: pwsh on Linux
+        if: runner.os == 'Linux'
+        run: tests/run.sh pwsh
+
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: ffmpeg
+        run: choco install ffmpeg -y --no-progress
+      - name: PowerShell 7
+        run: tests/run.sh pwsh
+      - name: Windows PowerShell 5.1
+        run: tests/run.sh powershell

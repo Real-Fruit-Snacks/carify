@@ -1,0 +1,10 @@
+name: Change request
+description: Something carify should do differently
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What you want and why
+      description: The file or situation it would help with.
+    validations:
+      required: true

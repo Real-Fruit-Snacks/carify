@@ -1,0 +1,36 @@
+name: Bug
+description: carify failed, or the file it made doesn't play
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: The command you ran and what you saw. Paste carify's output.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: probe
+    attributes:
+      label: ffprobe of the input
+      description: "Output of: ffprobe -v error -show_entries stream=codec_type,codec_name,profile,level,pix_fmt,width,height,channels -of compact <file>"
+      render: text
+  - type: input
+    id: script
+    attributes:
+      label: Script and version
+      placeholder: "carify 1.1.0 (bash 5.2) / carify.ps1 1.1.0 (PowerShell 5.1)"
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS and ffmpeg version
+      placeholder: "Windows 11 24H2, ffmpeg 7.1"
+    validations:
+      required: true
+  - type: input
+    id: car
+    attributes:
+      label: Vehicle and head unit, if the file doesn't play
+      placeholder: "2021 Jeep Wrangler, Uconnect 4C 8.4in"
