@@ -1,0 +1,14 @@
+# Cover + social preview. Regenerate with Real-Fruit-Snacks/.github, from the folder holding both clones:
+#   python3 .github/tools/make-cover.py carify/docs/assets/cover.toml
+name        = "carify"
+description = "Convert video for Uconnect USB playback, via ffmpeg."
+bullets = [
+  "Copies streams that already comply",
+  "H.264 8-bit, 720p, AAC stereo, faststart",
+  "Drops the file on a stick labelled MOVIES",
+  "bash and PowerShell: Windows, macOS, Linux",
+]
+
+[panel]
+kind = "art"
+file = "cover-art.svg"
