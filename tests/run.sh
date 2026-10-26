@@ -42,8 +42,9 @@ run() {
 
 not() { ! "$@"; }
 # stream field from the first video/audio stream of a file
-f() { ffprobe -v error -select_streams "$2" -show_entries "stream=$3" -of csv=p=0 "file:$1" | head -n1; }
-streams() { ffprobe -v error -show_entries stream=codec_type -of csv=p=0 "file:$1" | tr '\n' ' ' | sed 's/ $//'; }
+# (tr -d '\r': ffprobe on Windows ends lines with CRLF)
+f() { ffprobe -v error -select_streams "$2" -show_entries "stream=$3" -of csv=p=0 "file:$1" | tr -d '\r' | head -n1; }
+streams() { ffprobe -v error -show_entries stream=codec_type -of csv=p=0 "file:$1" | tr -d '\r' | tr '\n' ' ' | sed 's/ $//'; }
 # true if the moov atom comes before mdat (faststart)
 py=$(command -v python3 || command -v python)
 moov_first() { "$py" - "$1" <<'PY'
@@ -78,8 +79,10 @@ SIZE=1080x1920 gen portrait.mp4 -map 0:v -map 1:a -c:v libx264 -profile:v high -
 SIZE=1920x1080 gen full-hd.mp4  -map 0:v -map 1:a -c:v libx264 -profile:v high -level:v 4.1 -pix_fmt yuv420p -c:a aac -ac 2
 gen silent.mp4  -map 0:v -c:v libx264 -pix_fmt yuv420p
 gen level51.mp4 -map 0:v -map 1:a -c:v libx264 -profile:v high -level:v 5.1 -pix_fmt yuv420p -c:a aac -ac 2
-gen hdr.mkv     -map 0:v -map 1:a -c:v libx265 -pix_fmt yuv420p10le -x265-params log-level=error \
-                -color_primaries bt2020 -color_trc smpte2084 -colorspace bt2020nc -c:a aac
+# HDR10 flags go into the HEVC bitstream (VUI) as well as the container, so every ffmpeg version reads them
+gen hdr.mkv     -map 0:v -map 1:a -vf setparams=color_primaries=bt2020:color_trc=smpte2084:colorspace=bt2020nc \
+                -c:v libx265 -pix_fmt yuv420p10le \
+                -x265-params log-level=error:colorprim=bt2020:transfer=smpte2084:colormatrix=bt2020nc -c:a aac
 gen hi422.mkv   -map 0:v -map 1:a -c:v libx264 -pix_fmt yuv422p -c:a aac -ac 2
 # Cover art: an MKV with an image attachment, and an MP3 whose only "video" is the cover
 ffmpeg -hide_banner -loglevel error -nostdin -y -f lavfi -i "color=c=orange:size=300x300:duration=1" -frames:v 1 cover.png

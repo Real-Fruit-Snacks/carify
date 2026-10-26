@@ -1,13 +1,11 @@
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Real-Fruit-Snacks/.github/main/assets/rfs-lockup-dark.svg">
-    <img alt="RFS" src="https://raw.githubusercontent.com/Real-Fruit-Snacks/.github/main/assets/rfs-lockup-light.svg" height="40">
-  </picture>
-</p>
-
 # carify
 
 Convert video for Uconnect USB playback, via ffmpeg
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/cover-dark.svg">
+  <img alt="carify converting road-trip.mkv in a terminal: HEVC 10-bit 1080p with AC3 5.1 becomes H.264 8-bit 720p with AAC 2.0, then it is copied to a stick labelled MOVIES" src="docs/assets/cover-light.svg" width="100%">
+</picture>
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/Real-Fruit-Snacks/carify/main/install.sh | sh
