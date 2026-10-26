@@ -73,13 +73,16 @@ foreach ($tool in 'ffmpeg', 'ffprobe') {
 }
 
 if (-not (Test-Path -LiteralPath $In -PathType Leaf)) { Exit-Carify "file not found: $In" }
-$In = (Resolve-Path -LiteralPath $In).ProviderPath
+# Plain .NET path handling: PowerShell's own resolvers read a colon in a Linux
+# file name ("a: b.mkv") as a drive.
+$here = (Get-Location -PSProvider FileSystem).ProviderPath
+$In = [IO.Path]::GetFullPath([IO.Path]::Combine($here, $In))
 if (-not $Out) {
     $stem = [IO.Path]::GetFileNameWithoutExtension($In)
     if (-not $stem) { $stem = [IO.Path]::GetFileName($In) }
-    $Out = Join-Path ([IO.Path]::GetDirectoryName($In)) ($stem + '-car.mp4')
+    $Out = [IO.Path]::Combine([IO.Path]::GetDirectoryName($In), $stem + '-car.mp4')
 }
-$Out = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Out)
+$Out = [IO.Path]::GetFullPath([IO.Path]::Combine($here, $Out))
 $outDir = [IO.Path]::GetDirectoryName($Out)
 if (-not (Test-Path -LiteralPath $outDir -PathType Container)) { Exit-Carify "output folder does not exist: $outDir" }
 
@@ -159,7 +162,7 @@ else {
 # --- encode ----------------------------------------------------------------
 # Write to a hidden temp file and rename, so an interrupted run never leaves
 # a half-written movie-car.mp4 behind. finally runs on Ctrl+C too.
-$tmp = Join-Path $outDir ('.' + [IO.Path]::GetFileName($Out) + '.part')
+$tmp = [IO.Path]::Combine($outDir, '.' + [IO.Path]::GetFileName($Out) + '.part')
 try {
     & ffmpeg -hide_banner -nostdin -loglevel warning -stats -y -i "file:$In" `
         -map '0:V:0' @vopts @aopts -sn -dn -map_metadata 0 `
@@ -171,7 +174,7 @@ finally {
     if (Test-Path -LiteralPath $tmp) { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue }
 }
 
-$size = (Get-Item -LiteralPath $Out).Length
+$size = (New-Object IO.FileInfo $Out).Length
 $human = if ($size -ge 1MB) { '{0} MB' -f [math]::Floor($size / 1MB) } else { '{0} KB' -f [math]::Floor($size / 1KB) }
 Write-Status 'wrote' "$Out ($human)" 'ok'
 
@@ -200,7 +203,7 @@ if ($fs -eq 'FAT32' -and $size -gt 4294967295) {
     Exit-Carify "$dest is FAT32, which caps files at 4 GB. Reformat the stick as exFAT or use a lower -MaxHeight"
 }
 Write-Status 'usb' "copying to $dest"
-$target = Join-Path $dest ([IO.Path]::GetFileName($Out))
+$target = [IO.Path]::Combine($dest, [IO.Path]::GetFileName($Out))
 try { Copy-Item -LiteralPath $Out -Destination $target -Force -ErrorAction Stop }
 catch {
     Remove-Item -LiteralPath $target -Force -ErrorAction SilentlyContinue

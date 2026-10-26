@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+Fixed
+- PowerShell 7 on Linux/macOS: a file name containing a colon was read as a drive and the run failed.
+
 ## v1.1.0
 
 Added
