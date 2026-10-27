@@ -2,7 +2,7 @@
 # Installs carify to ~/.local/bin.
 #   curl -fsSL https://raw.githubusercontent.com/Real-Fruit-Snacks/carify/main/install.sh | sh
 # CARIFY_BIN=<dir>   install somewhere else
-# CARIFY_REF=v1.1.0  install a tagged version instead of main
+# CARIFY_REF=v1.1.1  install a tagged version instead of main
 # CARIFY_URL=<url>   download the script from a mirror
 set -eu
 

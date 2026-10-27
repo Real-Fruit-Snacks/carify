@@ -73,7 +73,7 @@ A file that already complies takes seconds. A re-encode takes as long as libx264
 | `CARIFY_THEME` | `nightshift` | `dayshift` for light terminal backgrounds |
 | `NO_COLOR` | unset | Any value turns colour off |
 
-The installers also read `CARIFY_BIN` (install folder) and `CARIFY_REF` (a tag such as `v1.1.0` instead of `main`).
+The installers also read `CARIFY_BIN` (install folder) and `CARIFY_REF` (a tag such as `v1.1.1` instead of `main`).
 
 ## License
 

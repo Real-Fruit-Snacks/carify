@@ -1,0 +1,26 @@
+# Push a tag vX.Y.Z (matching a "## vX.Y.Z" section in CHANGELOG.md) to publish a
+# release. The release carries the two scripts and their installers as assets;
+# CARIFY_REF=vX.Y.Z makes the installers fetch that tag from the repo instead.
+name: release
+on:
+  push:
+    tags: ["v*.*.*"]
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: Versions match the tag
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          grep -q "^CARIFY_VERSION=\"$v\"" carify || { echo "carify says $(grep ^CARIFY_VERSION= carify), tag is $v"; exit 1; }
+          grep -q "^\$CarifyVersion = '$v'" carify.ps1 || { echo "carify.ps1 version differs from $v"; exit 1; }
+          grep -q "^## v$v\$" CHANGELOG.md || { echo "CHANGELOG.md has no '## v$v' section"; exit 1; }
+          awk -v h="## v$v" '$0 == h {on=1; next} /^## / {on=0} on' CHANGELOG.md > notes.md
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md carify carify.ps1 install.sh install.ps1

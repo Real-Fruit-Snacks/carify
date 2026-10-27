@@ -1,9 +1,15 @@
 # Changelog
 
-## Unreleased
+## v1.1.1
+
+The `v1.1.0` tag was made before these fixes landed, so its scripts still have the bugs below. Use this release instead.
 
 Fixed
-- PowerShell 7 on Linux/macOS: a file name containing a colon was read as a drive and the run failed.
+- PowerShell 7 on Linux/macOS: a file name containing a colon was read as a drive and the run failed. `carify.ps1` now handles paths with .NET instead of PowerShell's providers.
+- PowerShell: when the copy to the stick fails, the message gives the underlying reason (disk full, file too large) instead of a generic error.
+
+Tests
+- `tests/run.sh` passes on Windows (ffprobe's CRLF output) and with newer ffmpeg (the HDR fixture sets its colour flags in the HEVC stream too).
 
 ## v1.1.0
 

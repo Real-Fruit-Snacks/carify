@@ -1,7 +1,7 @@
 # Installs carify.ps1 to $HOME\bin and puts that folder on your user PATH.
 #   irm https://raw.githubusercontent.com/Real-Fruit-Snacks/carify/main/install.ps1 | iex
 # $env:CARIFY_BIN = '<dir>'   install somewhere else
-# $env:CARIFY_REF = 'v1.1.0'  install a tagged version instead of main
+# $env:CARIFY_REF = 'v1.1.1'  install a tagged version instead of main
 # $env:CARIFY_URL = '<url>'   download the script from a mirror
 & {
     $ErrorActionPreference = 'Stop'
