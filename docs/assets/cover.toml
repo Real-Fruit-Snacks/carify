@@ -1,14 +1,27 @@
 # Cover + social preview. Regenerate with Real-Fruit-Snacks/rfs-brand, from the folder holding both clones:
 #   python3 rfs-brand/tools/make-cover.py carify/docs/assets/cover.toml
+# Layout v2 (BRAND.md section 7): name, rule, the README one-liner, and one panel.
 name        = "carify"
-description = "Convert video for Uconnect USB playback, via ffmpeg."
-bullets = [
-  "Copies streams that already comply",
-  "H.264 8-bit, 720p, AAC stereo, faststart",
-  "Drops the file on a stick labelled MOVIES",
-  "bash and PowerShell: Windows, macOS, Linux",
-]
+description = "Convert video for Uconnect USB playback, via ffmpeg"   # README line 1
 
+# What carify does to a file: the streams that go in, the ones that come out.
+# File names and the streams are the v1 cover's example run; the status line
+# is carify's own wording.
 [panel]
-kind = "art"
-file = "cover-art.svg"
+kind   = "flow"
+status = ["ok usb done; safe to remove the stick"]
+
+[panel.input]
+label = "road-trip.mkv"
+chips = ["HEVC 10-bit", "1080p", "AC3 5.1"]
+tone  = "mute"
+
+[panel.tool]
+label = "carify"
+note  = "via ffmpeg"
+
+[panel.output]
+label = "road-trip-car.mp4"
+note  = "612 MB"
+chips = ["H.264 8-bit", "720p", "AAC 2.0"]
+tone  = "mint"
