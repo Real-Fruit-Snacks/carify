@@ -82,7 +82,7 @@ PowerShell takes the same arguments as `-Force`, `-MaxHeight 1080`, `-NoUsb` and
 | `CARIFY_THEME` | `nightshift` | `dayshift` for light terminal backgrounds |
 | `NO_COLOR` | unset | Any value turns colour off |
 
-The installers also read `CARIFY_BIN` (install folder) and `CARIFY_REF` (a tag such as `v1.1.1` instead of `main`).
+The installers also read `CARIFY_BIN` (install folder) and `CARIFY_REF` (a tag such as `v1.1.2` instead of `main`).
 
 ## What's in it
 
