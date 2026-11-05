@@ -1,12 +1,13 @@
 """Record the carify runs that the README cluster and the project page replay.
 
-Makes four short test clips with ffmpeg's testsrc2 and sine sources, one for each thing carify
-does to a file, runs carify on each the way a user would, and writes what it printed, how long
-it took, and ffprobe of the input and the output to docs/art/runs.json.
+Makes four 30-second test clips with ffmpeg's testsrc2 and sine sources, one for each thing
+carify does to a file, runs carify on each the way a user would, and writes to
+docs/art/runs.json what it printed (each piece time-stamped, so a replay keeps the real pace),
+what the terminal was left showing, and ffprobe of the input and the output.
 
     python3 docs/art/record.py                       # record into docs/art/runs.json
     python3 docs/art/record.py --out other.json      # record somewhere else
-    python3 docs/art/record.py --check a.json b.json # same runs? (ignores timing and sizes)
+    python3 docs/art/record.py --check a.json b.json # same output? (timings and sizes aside)
 
 Needs bash, and ffmpeg/ffprobe with libx264, libx265 and ac3. If a folder named MOVIES is
 mounted where carify looks for the stick (/media/$USER/MOVIES and so on), carify copies
@@ -14,6 +15,7 @@ each result onto it, as it would for you. CI records on ubuntu-24.04 and checks 
 against the committed runs.json, so the README never shows output carify no longer prints.
 """
 import argparse
+import difflib
 import json
 import os
 import platform
@@ -27,8 +29,9 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.normpath(os.path.join(HERE, "..", ".."))
 SECONDS = 30
+NL, CR = "\n", "\r"
 
-# name, file, why it's here, the ffmpeg output options that make it (inputs are testsrc2 + sine)
+# name, file, what's wrong with it, frame size, frame rate, ffmpeg output options (inputs: testsrc2 + sine)
 CLIPS = [
     ("road-trip", "road-trip.mkv", "won't play: HEVC 10-bit 1080p with AC3 5.1",
      "1920x1080", 24, ["-c:v", "libx265", "-preset", "ultrafast", "-pix_fmt", "yuv420p10le",
@@ -65,13 +68,37 @@ def probe(path):
     return info
 
 
-def screen(stderr):
-    """What a terminal is left showing: ffmpeg redraws its progress line with \\r."""
-    lines = []
-    for raw in stderr.replace("\r\n", "\n").split("\n"):
-        parts = [p for p in raw.split("\r") if p.strip()]
-        if parts:
-            lines.append(parts[-1].rstrip())
+def watch(cmd, cwd, env):
+    """Run cmd and time-stamp each piece of stderr it prints. ffmpeg redraws its progress line
+    with a carriage return, so every piece keeps the character that ended it."""
+    p = subprocess.Popen(cmd, cwd=cwd, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    t0, events, buf, now = time.monotonic(), [], b"", 0.0
+    while True:
+        chunk = os.read(p.stderr.fileno(), 4096)
+        now = round(time.monotonic() - t0, 2)
+        if not chunk:
+            break
+        buf += chunk
+        while (m := re.search(rb"[\r\n]", buf)):
+            piece, end, buf = buf[:m.start()], m.group().decode(), buf[m.end():]
+            text = piece.decode("utf-8", "replace").rstrip()
+            if text:
+                events.append([now, end, text])
+    if buf.strip():
+        events.append([now, NL, buf.decode("utf-8", "replace").rstrip()])
+    code = p.wait()
+    return code, round(time.monotonic() - t0, 1), events
+
+
+def screen(events):
+    """What the terminal is left showing: a piece that ended in a carriage return is overwritten."""
+    lines, redraw = [], False
+    for _, end, text in events:
+        if redraw:
+            lines[-1] = text
+        else:
+            lines.append(text)
+        redraw = end == CR
     return lines
 
 
@@ -106,28 +133,27 @@ def record(out_path):
                     "-f", "lavfi", "-i", f"sine=frequency=330:duration={SECONDS}:sample_rate=48000",
                     "-map", "0:v", "-map", "1:a", *opts, fname]
             run(make, cwd=work)
-            t0 = time.monotonic()
-            p = subprocess.run([bash, carify, fname], cwd=work, env=env, capture_output=True, text=True)
-            took = time.monotonic() - t0
-            if p.returncode != 0:
-                sys.exit(f"carify failed on {fname} (exit {p.returncode}):\n{p.stderr}")
+            code, took, events = watch([bash, carify, fname], work, env)
+            if code != 0:
+                sys.exit(f"carify failed on {fname} (exit {code}):{NL}" + NL.join(e[2] for e in events))
             out_name = os.path.splitext(fname)[0] + "-car.mp4"
             result["runs"].append({
                 "name": name,
                 "file": fname,
                 "why": why,
                 "cmd": f"carify {fname}",
-                "lines": screen(p.stderr),
-                "seconds": round(took, 1),
+                "screen": screen(events),
+                "events": events,
+                "seconds": took,
                 "in": probe(os.path.join(work, fname)),
                 "out": probe(os.path.join(work, out_name)),
             })
             print(f"{fname}: {took:.1f} s", file=sys.stderr)
     finally:
         shutil.rmtree(work, ignore_errors=True)
-    with open(out_path, "w", encoding="utf-8", newline="\n") as fh:
+    with open(out_path, "w", encoding="utf-8", newline=NL) as fh:
         json.dump(result, fh, indent=1, sort_keys=True)
-        fh.write("\n")
+        fh.write(NL)
     print(f"wrote {out_path}", file=sys.stderr)
 
 
@@ -136,11 +162,11 @@ def stable(data):
     keep = []
     for r in data["runs"]:
         lines = []
-        for line in r["lines"]:
-            if line.startswith("frame="):
-                line = "frame=..."
+        for line in r["screen"]:
+            if re.match(r"(frame|size)=", line):
+                line = "(ffmpeg progress)"
             lines.append(re.sub(r"\(\d+ (KB|MB)\)$", "(...)", line))
-        side = lambda d: {k: v for k, v in d.items() if k not in ("bytes",)}
+        side = lambda d: {k: v for k, v in d.items() if k != "bytes"}
         keep.append({"name": r["name"], "cmd": r["cmd"], "lines": lines, "in": side(r["in"]), "out": side(r["out"])})
     return keep
 
@@ -151,10 +177,9 @@ def check(a_path, b_path):
     if a == b:
         print(f"{a_path} matches a fresh recording ({len(a)} runs)")
         return
-    import difflib
     sa = json.dumps(a, indent=1, sort_keys=True).splitlines()
     sb = json.dumps(b, indent=1, sort_keys=True).splitlines()
-    print("\n".join(difflib.unified_diff(sa, sb, a_path, b_path, lineterm="")))
+    print(NL.join(difflib.unified_diff(sa, sb, a_path, b_path, lineterm="")))
     sys.exit(f"{a_path} no longer matches what carify prints; run docs/art/record.py and commit the result")
 
 
