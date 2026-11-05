@@ -32,7 +32,7 @@ $ carify road-trip.mkv
 probe  video hevc/yuv420p10le/Main 10 1920x1080  audio ac3 6ch
 video  re-encode to H.264 High 8-bit, fits 1280x720 (slow)
 audio  re-encode to AAC stereo 160k
-frame=  720 fps=136 q=-1.0 Lsize=    8706kB time=00:00:29.99 bitrate=2377.8kbits/s speed=5.67x
+frame=  720 fps=106 q=-1.0 Lsize=    8706kB time=00:00:29.99 bitrate=2377.8kbits/s speed=4.43x
 wrote  ./road-trip-car.mp4 (8 MB)
 usb    copying to /media/runner/MOVIES
 usb    done; safe to remove the stick
@@ -46,10 +46,10 @@ The four test clips are ffmpeg's `testsrc2` picture with a sine tone, each made 
 
 | Clip | Came in as | carify | Took | Went out as |
 |---|---|---|---|---|
-| `road-trip.mkv` | hevc Main 10, 1920×1080, ac3 5.1 | Video re-encoded, audio re-encoded | 5.9 s (5.67x) | h264 High 4.1, 1280×720, aac stereo, 8 MB |
-| `cartoons.mkv` | h264 High, 1280×720, ac3 5.1 | Video copied, audio re-encoded | 0.9 s (50.7x) | h264 High 3.1, 1280×720, aac stereo, 9 MB |
-| `phone-video.mp4` | h264 High, 1080×1920, aac stereo | Video re-encoded, audio copied | 3.6 s (9.26x) | h264 High 4.1, 406×720, aac stereo, 2 MB |
-| `dashcam.mp4` | h264 Main, 1280×720, aac stereo | Video copied, audio copied | 0.3 s (1.3e+03x) | h264 Main 3.1, 1280×720, aac stereo, 10 MB |
+| `road-trip.mkv` | hevc Main 10, 1920×1080, ac3 5.1 | Video re-encoded, audio re-encoded | 7.5 s (4.43x) | h264 High 4.1, 1280×720, aac stereo, 8 MB |
+| `cartoons.mkv` | h264 High, 1280×720, ac3 5.1 | Video copied, audio re-encoded | 1 s (41.7x) | h264 High 3.1, 1280×720, aac stereo, 9 MB |
+| `phone-video.mp4` | h264 High, 1080×1920, aac stereo | Video re-encoded, audio copied | 3.8 s (8.79x) | h264 High 4.1, 406×720, aac stereo, 2 MB |
+| `dashcam.mp4` | h264 Main, 1280×720, aac stereo | Video copied, audio copied | 0.4 s (957x) | h264 Main 3.1, 1280×720, aac stereo, 10 MB |
 
 <!-- /art:readme-runs -->
 

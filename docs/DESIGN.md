@@ -46,7 +46,7 @@ The dials. 240-degree sweeps with the head unit's limit drawn as a redline: 720 
 
 ## Wow moment
 
-On load the cluster does the gauge sweep a car does when you switch it on: both needles to full scale and back, settling on road-trip.mkv's values, 1080 and 6, both Over. The command types itself, and then carify's real output from `docs/art/runs.json` prints at the times it was recorded: the probe line, the two re-encode decisions, ffmpeg's progress line redrawing in place while the bar fills, then `wrote`. At that moment the needles drop to 720 and 2, the readouts turn Mint and say Fits, the ghost needles stay at 1080 and 6, and the USB lamp goes from Copying to Safe to remove. The four file buttons replay the other recorded runs; cartoons.mkv moves only the audio needle, dashcam.mp4 moves nothing and finishes in 0.3 s.
+On load the cluster does the gauge sweep a car does when you switch it on: both needles to full scale and back, settling on road-trip.mkv's values, 1080 and 6, both Over. The command types itself, and then carify's real output from `docs/art/runs.json` prints at the times it was recorded: the probe line, the two re-encode decisions, ffmpeg's progress line redrawing in place while the bar fills, then `wrote`. At that moment the needles drop to 720 and 2, the readouts turn Mint and say Fits, the ghost needles stay at 1080 and 6, and the USB lamp goes from Copying to Safe to remove. The four file buttons replay the other recorded runs; cartoons.mkv moves only the audio needle, dashcam.mp4 moves nothing and finishes in 0.4 s.
 
 - **No JS:** the finished road-trip run, complete, rendered into the HTML by `make-art.py`.
 - **Reduced motion:** nothing plays by itself; a file button shows that run finished, at once.

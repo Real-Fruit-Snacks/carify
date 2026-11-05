@@ -1,7 +1,7 @@
 {
  "recorded": {
   "bash": "5.2.21(1)-release",
-  "carify": "carify 1.1.1",
+  "carify": "carify 1.1.2",
   "clips": "30 s of ffmpeg's testsrc2 picture and a sine tone",
   "ffmpeg": "ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers",
   "os": "Ubuntu 24.04.5 LTS"
@@ -26,77 +26,92 @@
      "audio  re-encode to AAC stereo 160k"
     ],
     [
-     0.21,
+     0.22,
      "\r",
-     "frame=    0 fps=0.0 q=0.0 size=       0kB time=00:00:00.12 bitrate=   3.0kbits/s speed=5.44x"
+     "frame=    0 fps=0.0 q=0.0 size=       0kB time=00:00:00.12 bitrate=   3.0kbits/s speed= 4.3x"
     ],
     [
-     0.69,
+     0.7,
      "\r",
-     "frame=   49 fps=0.0 q=25.0 size=     512kB time=00:00:02.96 bitrate=1414.6kbits/s speed=5.62x"
+     "frame=   32 fps=0.0 q=25.0 size=     256kB time=00:00:02.30 bitrate= 910.4kbits/s speed=4.33x"
     ],
     [
      1.2,
      "\r",
-     "frame=  114 fps=110 q=25.0 size=    1280kB time=00:00:05.69 bitrate=1841.0kbits/s speed=5.51x"
+     "frame=   85 fps= 82 q=25.0 size=    1024kB time=00:00:04.48 bitrate=1872.5kbits/s speed=4.33x"
     ],
     [
      1.7,
      "\r",
-     "frame=  182 fps=119 q=25.0 size=    2048kB time=00:00:08.53 bitrate=1966.1kbits/s speed=5.56x"
+     "frame=  139 fps= 90 q=25.0 size=    1536kB time=00:00:06.74 bitrate=1866.6kbits/s speed=4.39x"
     ],
     [
      2.2,
      "\r",
-     "frame=  251 fps=123 q=25.0 size=    2816kB time=00:00:11.34 bitrate=2032.6kbits/s speed=5.58x"
+     "frame=  191 fps= 94 q=25.0 size=    2304kB time=00:00:08.91 bitrate=2116.6kbits/s speed=4.38x"
     ],
     [
-     2.7,
+     2.71,
      "\r",
-     "frame=  322 fps=127 q=25.0 size=    3840kB time=00:00:14.35 bitrate=2191.1kbits/s speed=5.66x"
+     "frame=  247 fps= 97 q=25.0 size=    2816kB time=00:00:11.22 bitrate=2055.8kbits/s speed=4.41x"
     ],
     [
-     3.2,
+     3.22,
      "\r",
-     "frame=  391 fps=129 q=25.0 size=    4608kB time=00:00:17.23 bitrate=2190.0kbits/s speed=5.68x"
+     "frame=  303 fps= 99 q=25.0 size=    3584kB time=00:00:13.56 bitrate=2164.0kbits/s speed=4.45x"
     ],
     [
-     3.7,
+     3.72,
      "\r",
-     "frame=  461 fps=130 q=25.0 size=    5376kB time=00:00:20.16 bitrate=2184.6kbits/s speed= 5.7x"
+     "frame=  357 fps=101 q=25.0 size=    4096kB time=00:00:15.82 bitrate=2119.8kbits/s speed=4.46x"
     ],
     [
-     4.21,
+     4.22,
      "\r",
-     "frame=  533 fps=132 q=25.0 size=    6400kB time=00:00:23.16 bitrate=2263.0kbits/s speed=5.73x"
+     "frame=  410 fps=101 q=25.0 size=    4864kB time=00:00:18.04 bitrate=2207.8kbits/s speed=4.45x"
     ],
     [
-     4.71,
+     4.72,
      "\r",
-     "frame=  603 fps=133 q=25.0 size=    7168kB time=00:00:26.06 bitrate=2252.5kbits/s speed=5.73x"
+     "frame=  465 fps=102 q=25.0 size=    5376kB time=00:00:20.30 bitrate=2168.5kbits/s speed=4.46x"
     ],
     [
-     5.21,
+     5.22,
      "\r",
-     "frame=  672 fps=133 q=25.0 size=    7936kB time=00:00:28.94 bitrate=2245.7kbits/s speed=5.73x"
+     "frame=  520 fps=103 q=25.0 size=    6144kB time=00:00:22.61 bitrate=2225.8kbits/s speed=4.47x"
     ],
     [
-     5.45,
+     5.73,
+     "\r",
+     "frame=  574 fps=103 q=25.0 size=    6656kB time=00:00:24.85 bitrate=2193.9kbits/s speed=4.47x"
+    ],
+    [
+     6.23,
+     "\r",
+     "frame=  630 fps=104 q=25.0 size=    7424kB time=00:00:27.20 bitrate=2235.9kbits/s speed=4.49x"
+    ],
+    [
+     6.73,
+     "\r",
+     "frame=  684 fps=104 q=25.0 size=    8192kB time=00:00:29.46 bitrate=2277.9kbits/s speed=4.49x"
+    ],
+    [
+     6.93,
      "\n",
-     "frame=  720 fps=136 q=-1.0 Lsize=    8706kB time=00:00:29.99 bitrate=2377.8kbits/s speed=5.67x"
+     "frame=  720 fps=106 q=-1.0 Lsize=    8706kB time=00:00:29.99 bitrate=2377.8kbits/s speed=4.43x"
     ],
     [
-     5.47,
+     6.95,
      "\n",
      "wrote  ./road-trip-car.mp4 (8 MB)"
     ],
     [
-     5.47,
+     6.95,
      "\n",
      "usb    copying to /media/runner/MOVIES"
     ],
     [
-     5.93,
+     7.49,
      "\n",
      "usb    done; safe to remove the stick"
     ]
@@ -142,59 +157,59 @@
     "probe  video hevc/yuv420p10le/Main 10 1920x1080  audio ac3 6ch",
     "video  re-encode to H.264 High 8-bit, fits 1280x720 (slow)",
     "audio  re-encode to AAC stereo 160k",
-    "frame=  720 fps=136 q=-1.0 Lsize=    8706kB time=00:00:29.99 bitrate=2377.8kbits/s speed=5.67x",
+    "frame=  720 fps=106 q=-1.0 Lsize=    8706kB time=00:00:29.99 bitrate=2377.8kbits/s speed=4.43x",
     "wrote  ./road-trip-car.mp4 (8 MB)",
     "usb    copying to /media/runner/MOVIES",
     "usb    done; safe to remove the stick"
    ],
-   "seconds": 5.9,
+   "seconds": 7.5,
    "why": "won't play: HEVC 10-bit 1080p with AC3 5.1"
   },
   {
    "cmd": "carify cartoons.mkv",
    "events": [
     [
-     0.1,
+     0.11,
      "\n",
      "probe  video h264/yuv420p/High 1280x720  audio ac3 6ch"
     ],
     [
-     0.1,
+     0.11,
      "\n",
      "video  copy"
     ],
     [
-     0.1,
+     0.11,
      "\n",
      "audio  re-encode to AAC stereo 160k"
     ],
     [
-     0.15,
+     0.16,
      "\r",
      "size=       0kB time=-00:00:00.03 bitrate=  -0.0kbits/s speed=N/A"
     ],
     [
      0.65,
      "\r",
-     "size=    7680kB time=00:00:25.17 bitrate=2499.4kbits/s speed=50.3x"
+     "size=    6144kB time=00:00:20.17 bitrate=2495.1kbits/s speed=40.3x"
     ],
     [
-     0.74,
+     0.87,
      "\n",
-     "size=    9298kB time=00:00:29.99 bitrate=2539.3kbits/s speed=50.7x"
+     "size=    9298kB time=00:00:29.99 bitrate=2539.3kbits/s speed=41.7x"
     ],
     [
-     0.75,
+     0.88,
      "\n",
      "wrote  ./cartoons-car.mp4 (9 MB)"
     ],
     [
-     0.75,
+     0.88,
      "\n",
      "usb    copying to /media/runner/MOVIES"
     ],
     [
-     0.89,
+     1.04,
      "\n",
      "usb    done; safe to remove the stick"
     ]
@@ -240,12 +255,12 @@
     "probe  video h264/yuv420p/High 1280x720  audio ac3 6ch",
     "video  copy",
     "audio  re-encode to AAC stereo 160k",
-    "size=    9298kB time=00:00:29.99 bitrate=2539.3kbits/s speed=50.7x",
+    "size=    9298kB time=00:00:29.99 bitrate=2539.3kbits/s speed=41.7x",
     "wrote  ./cartoons-car.mp4 (9 MB)",
     "usb    copying to /media/runner/MOVIES",
     "usb    done; safe to remove the stick"
    ],
-   "seconds": 0.9,
+   "seconds": 1.0,
    "why": "plays without sound: H.264 720p with AC3 5.1"
   },
   {
@@ -267,57 +282,57 @@
      "audio  copy"
     ],
     [
-     0.2,
+     0.21,
      "\r",
-     "frame=    0 fps=0.0 q=0.0 size=       0kB time=00:00:00.12 bitrate=   3.0kbits/s speed=8.56x"
+     "frame=    0 fps=0.0 q=0.0 size=       0kB time=00:00:00.12 bitrate=   3.0kbits/s speed=8.18x"
     ],
     [
      0.69,
      "\r",
-     "frame=  116 fps=0.0 q=26.0 size=     256kB time=00:00:04.67 bitrate= 449.0kbits/s speed=8.97x"
+     "frame=  113 fps=0.0 q=26.0 size=     256kB time=00:00:04.58 bitrate= 457.3kbits/s speed=8.88x"
     ],
     [
-     1.19,
+     1.2,
      "\r",
-     "frame=  261 fps=255 q=26.0 size=     512kB time=00:00:09.49 bitrate= 441.9kbits/s speed=9.29x"
+     "frame=  250 fps=246 q=26.0 size=     512kB time=00:00:09.08 bitrate= 461.6kbits/s speed=8.93x"
     ],
     [
      1.69,
      "\r",
-     "frame=  403 fps=265 q=26.0 size=     768kB time=00:00:14.20 bitrate= 442.8kbits/s speed=9.33x"
+     "frame=  382 fps=251 q=26.0 size=     768kB time=00:00:13.50 bitrate= 465.9kbits/s speed=8.89x"
     ],
     [
-     2.19,
+     2.2,
      "\r",
-     "frame=  545 fps=269 q=26.0 size=    1280kB time=00:00:18.96 bitrate= 552.9kbits/s speed=9.37x"
+     "frame=  512 fps=253 q=26.0 size=    1280kB time=00:00:17.83 bitrate= 588.0kbits/s speed=8.83x"
     ],
     [
-     2.69,
+     2.7,
      "\r",
-     "frame=  683 fps=270 q=26.0 size=    1536kB time=00:00:23.57 bitrate= 533.8kbits/s speed=9.33x"
+     "frame=  645 fps=256 q=26.0 size=    1536kB time=00:00:22.31 bitrate= 563.9kbits/s speed=8.84x"
     ],
     [
      3.2,
      "\r",
-     "frame=  823 fps=272 q=26.0 size=    2048kB time=00:00:28.20 bitrate= 594.9kbits/s speed=9.32x"
+     "frame=  778 fps=257 q=26.0 size=    1792kB time=00:00:26.75 bitrate= 548.8kbits/s speed=8.84x"
     ],
     [
-     3.41,
+     3.59,
      "\n",
-     "frame=  900 fps=278 q=-1.0 Lsize=    2293kB time=00:00:29.99 bitrate= 626.3kbits/s speed=9.26x"
+     "frame=  900 fps=264 q=-1.0 Lsize=    2293kB time=00:00:29.99 bitrate= 626.3kbits/s speed=8.79x"
     ],
     [
-     3.42,
+     3.6,
      "\n",
      "wrote  ./phone-video-car.mp4 (2 MB)"
     ],
     [
-     3.42,
+     3.6,
      "\n",
      "usb    copying to /media/runner/MOVIES"
     ],
     [
-     3.55,
+     3.8,
      "\n",
      "usb    done; safe to remove the stick"
     ]
@@ -364,12 +379,12 @@
     "probe  video h264/yuv420p/High 1080x1920  audio aac 2ch",
     "video  re-encode to H.264 High 8-bit, fits 1280x720 (slow)",
     "audio  copy",
-    "frame=  900 fps=278 q=-1.0 Lsize=    2293kB time=00:00:29.99 bitrate= 626.3kbits/s speed=9.26x",
+    "frame=  900 fps=264 q=-1.0 Lsize=    2293kB time=00:00:29.99 bitrate= 626.3kbits/s speed=8.79x",
     "wrote  ./phone-video-car.mp4 (2 MB)",
     "usb    copying to /media/runner/MOVIES",
     "usb    done; safe to remove the stick"
    ],
-   "seconds": 3.6,
+   "seconds": 3.8,
    "why": "too tall: portrait 1080x1920 H.264 with AAC stereo"
   },
   {
@@ -391,27 +406,27 @@
      "audio  copy"
     ],
     [
-     0.15,
+     0.16,
      "\r",
      "size=       0kB time=-00:00:00.06 bitrate=  -0.0kbits/s speed=N/A"
     ],
     [
-     0.17,
+     0.19,
      "\n",
-     "size=   10351kB time=00:00:29.99 bitrate=2827.0kbits/s speed=1.3e+03x"
+     "size=   10351kB time=00:00:29.99 bitrate=2827.0kbits/s speed= 957x"
     ],
     [
-     0.18,
+     0.2,
      "\n",
      "wrote  ./dashcam-car.mp4 (10 MB)"
     ],
     [
-     0.18,
+     0.2,
      "\n",
      "usb    copying to /media/runner/MOVIES"
     ],
     [
-     0.33,
+     0.37,
      "\n",
      "usb    done; safe to remove the stick"
     ]
@@ -458,12 +473,12 @@
     "probe  video h264/yuv420p/Main 1280x720  audio aac 2ch",
     "video  copy",
     "audio  copy",
-    "size=   10351kB time=00:00:29.99 bitrate=2827.0kbits/s speed=1.3e+03x",
+    "size=   10351kB time=00:00:29.99 bitrate=2827.0kbits/s speed= 957x",
     "wrote  ./dashcam-car.mp4 (10 MB)",
     "usb    copying to /media/runner/MOVIES",
     "usb    done; safe to remove the stick"
    ],
-   "seconds": 0.3,
+   "seconds": 0.4,
    "why": "already fine: H.264 720p with AAC stereo"
   }
  ]

@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## v1.1.2
+
+`carify`, `carify.ps1` and the installers are unchanged apart from the version number. This release is the new README and project page.
 
 Docs
 - New README and project page: an instrument cluster replays four real carify runs, with the head unit's limits as redlines. The runs are recorded in CI from generated test clips, so every timing, size and output line shown is one carify printed. The old cover's example timings and sizes were not from a real run.
