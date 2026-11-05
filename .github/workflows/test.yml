@@ -94,7 +94,8 @@ jobs:
 
   art:
     # The README cluster and the project page replay real carify runs from docs/art/runs.json.
-    # Record them again here and fail if carify's output no longer matches (timings and sizes aside).
+    # Record them again and fail if carify's output no longer matches (timings and sizes aside),
+    # then redraw everything make-art.py writes and fail if it differs from what's committed.
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -107,11 +108,18 @@ jobs:
       - name: A stick labelled MOVIES
         run: sudo mkdir -p "/media/$USER/MOVIES" && sudo chown "$USER" "/media/$USER/MOVIES"
       - name: Record the runs
-        run: python3 docs/art/record.py --out "$RUNNER_TEMP/runs.json" && cat "$RUNNER_TEMP/runs.json"
+        run: python3 docs/art/record.py --out "$RUNNER_TEMP/runs.json"
       - uses: actions/upload-artifact@v4
         with:
           name: runs
           path: ${{ runner.temp }}/runs.json
       - name: docs/art/runs.json still matches
-        if: hashFiles('docs/art/runs.json') != ''
         run: python3 docs/art/record.py --check docs/art/runs.json "$RUNNER_TEMP/runs.json"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Redraw the cluster
+        run: |
+          python -m pip install --quiet -r docs/art/requirements.txt
+          python docs/art/make-art.py
+          git diff --exit-code -- docs/assets/cluster-dark.svg docs/assets/cluster-light.svg docs/runs.js docs/index.html README.md

@@ -3,194 +3,199 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>carify — convert video for Uconnect USB playback</title>
-<meta name="description" content="carify re-encodes only the streams a Uconnect head unit can&#x27;t play (8-bit H.264 at 720p, AAC stereo), then copies the MP4 to a USB stick labelled MOVIES. bash and PowerShell, via ffmpeg.">
+<title>carify: convert video for Uconnect USB playback</title>
+<meta name="description" content="Uconnect head units in Chrysler, Jeep, Dodge and Ram vehicles play MP4 from a USB stick, but only 8-bit H.264 at 720p or smaller with AAC stereo. carify re-encodes only the streams over that line and copies the file onto a stick labelled MOVIES. bash and PowerShell, via ffmpeg.">
 <link rel="canonical" href="https://real-fruit-snacks.github.io/carify/">
 <meta property="og:title" content="carify">
 <meta property="og:description" content="Convert video for Uconnect USB playback, via ffmpeg">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://real-fruit-snacks.github.io/carify/">
-<meta property="og:image" content="https://real-fruit-snacks.github.io/carify/assets/cover-dark.png">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="560">
-<meta property="og:image:alt" content="carify converting road-trip.mkv in a terminal: HEVC 10-bit 1080p with AC3 5.1 becomes H.264 8-bit 720p with AAC 2.0, then it is copied to a stick labelled MOVIES">
+<meta property="og:image" content="https://real-fruit-snacks.github.io/carify/assets/social.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="carify's instrument cluster: road-trip.mkv came in 1080 pixels high with 6 audio channels, over the redlines; it went out 720 high with 2 channels and was copied to the stick">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
-<link rel="icon" href="assets/favicon.ico" sizes="48x48">
-<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="icon" href="favicon.ico" sizes="32x32">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0C0D10">
 <script>
-  // Theme before first paint: a saved choice wins, otherwise follow the OS.
-  (function () {
-    try {
-      var t = localStorage.getItem('rfs-theme');
-      if (t === 'nightshift' || t === 'dayshift') document.documentElement.setAttribute('data-theme', t);
-    } catch (e) {}
-  })();
+  // A saved theme wins over the system setting. The key is shared with the other RFS pages.
+  try { var t = localStorage.getItem('rfs-theme'); if (t === 'nightshift' || t === 'dayshift') document.documentElement.dataset.theme = t; } catch (e) {}
 </script>
-<link rel="preload" href="assets/fonts/ibm-plex-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="assets/fonts/ibm-plex-mono-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="assets/rfs.css">
-<link rel="stylesheet" href="assets/site.css">
+<link rel="preload" href="fonts/saira-latin-var.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<a class="skip" href="#install">Skip to the install line</a>
 
-<header class="site">
+<header class="top">
   <div class="wrap">
-    <a class="brand" href="https://real-fruit-snacks.github.io/" aria-label="RFS home">
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Real-Fruit-Snacks/rfs-brand/main/assets/rfs-lockup-dark.svg">
-        <img alt="RFS" src="https://raw.githubusercontent.com/Real-Fruit-Snacks/rfs-brand/main/assets/rfs-lockup-light.svg" data-lockup>
-      </picture>
-      <span class="sep" aria-hidden="true"></span>
-      <span class="name">carify</span>
-    </a>
-    <nav>
+    <a class="mark" href="./" aria-label="carify, top of the page">carify</a>
+    <nav aria-label="Page">
       <a href="#install">Install</a>
-      <a href="#how">How it works</a>
+      <a href="#how">The limits</a>
+      <a href="#runs">Test runs</a>
       <a href="#use">Usage</a>
-      <a href="#config">Configuration</a>
-      <a class="keep" href="https://github.com/Real-Fruit-Snacks/carify">GitHub</a>
-      <button class="toggle" type="button" id="theme" aria-label="Switch between Nightshift and Dayshift"><span class="night">Nightshift</span><span class="day">Dayshift</span></button>
+      <a href="https://github.com/Real-Fruit-Snacks/carify">GitHub</a>
     </nav>
+    <button class="theme" type="button" id="theme"><span class="sr-only">Theme: </span><span class="t-night">Night</span><span class="t-day">Day</span></button>
   </div>
 </header>
 
+<main>
 <div class="hero">
-  <div class="grid-bg" aria-hidden="true"></div>
-  <div class="glow" aria-hidden="true"></div>
   <div class="wrap">
-    <div>
-      <p class="label">bash · PowerShell · ffmpeg</p>
-      <h1>carify</h1>
-      <p class="lead">Convert video for Uconnect USB playback, via ffmpeg</p>
-      <p class="sub">Uconnect head units in Chrysler, Jeep, Dodge and Ram vehicles play MP4 files from a USB stick, but only 8-bit H.264 at 720p or smaller with AAC stereo audio. carify probes the file, re-encodes only the streams that don't comply, and copies the result onto the stick.</p>
+    <div class="hero-head">
+      <h1>Convert video for Uconnect USB playback</h1>
+        <p class="sub">Uconnect head units in Chrysler, Jeep, Dodge and Ram vehicles play MP4 files from a USB stick, but only 8-bit H.264 at 720p or smaller with AAC stereo sound. carify checks each stream against that line, re-encodes only what's over it, and copies the result onto a stick labelled MOVIES.</p>
 
-      <div class="install" id="install">
-        <div class="tabs" role="tablist">
-          <button role="tab" aria-selected="true" data-pane="sh">macOS · Linux</button>
-          <button role="tab" aria-selected="false" data-pane="ps">Windows</button>
+        <div class="install" id="install">
+          <div class="install-bar">
+          <div class="tabs" role="tablist" aria-label="Your system">
+            <button type="button" role="tab" id="tab-sh" aria-controls="pane-sh" aria-selected="true">macOS · Linux</button>
+            <button type="button" role="tab" id="tab-ps" aria-controls="pane-ps" aria-selected="false" tabindex="-1">Windows</button>
+          </div>
+          <button class="copy" type="button" id="copy" data-copy="curl -fsSL https://raw.githubusercontent.com/Real-Fruit-Snacks/carify/main/install.sh | sh">Copy</button>
+          </div>
+          <div class="pane" role="tabpanel" id="pane-sh" aria-labelledby="tab-sh"><code>curl -fsSL https://raw.githubusercontent.com/Real-Fruit-Snacks/carify/main/install.sh | sh</code></div>
+          <div class="pane" role="tabpanel" id="pane-ps" aria-labelledby="tab-ps" hidden><code>irm https://raw.githubusercontent.com/Real-Fruit-Snacks/carify/main/install.ps1 | iex</code></div>
+          <p class="install-note">Needs <a href="https://ffmpeg.org/">ffmpeg</a> on your PATH: <code>winget install Gyan.FFmpeg</code>, <code>sudo apt install ffmpeg</code>, <code>sudo dnf install ffmpeg</code> or <code>brew install ffmpeg</code>. Then <code>carify movie.mkv</code>.</p>
         </div>
-        <div class="pane" data-active data-id="sh"><pre><code>curl -fsSL https://raw.githubusercontent.com/Real-Fruit-Snacks/carify/main/install.sh | sh</code></pre><button class="copy" data-copy="curl -fsSL https://raw.githubusercontent.com/Real-Fruit-Snacks/carify/main/install.sh | sh">Copy</button></div>
-        <div class="pane" data-id="ps"><pre><code>irm https://raw.githubusercontent.com/Real-Fruit-Snacks/carify/main/install.ps1 | iex</code></pre><button class="copy" data-copy="irm https://raw.githubusercontent.com/Real-Fruit-Snacks/carify/main/install.ps1 | iex">Copy</button></div>
-        <div class="foot">Needs <a href="https://ffmpeg.org/">ffmpeg</a> on your PATH: <code>winget install Gyan.FFmpeg</code>, <code>sudo apt install ffmpeg</code>, <code>brew install ffmpeg</code>.</div>
-      </div>
     </div>
-    <div class="term" aria-label="Example: carify converting road-trip.mkv">
-      <div class="bar"><i></i><i></i><i></i><span>~/Videos</span></div>
-<pre><code><span class="c">$</span> carify road-trip.mkv
-<span class="p">probe</span> video hevc/yuv420p10le/Main 10 1920x1080  audio ac3 6ch
-<span class="p">video</span> re-encode to H.264 High 8-bit, fits 1280x720
-<span class="p">audio</span> re-encode to AAC stereo 160k
-<span class="c">frame=31840 fps=214 time=00:22:06.67 speed=8.9x</span>
-<span class="s">wrote</span> ./road-trip-car.mp4 (612 MB)
-<span class="p">usb</span>   copying to /Volumes/MOVIES
-<span class="s">usb</span>   done; safe to remove the stick
-<span class="c">$</span></code></pre>
-    </div>
+
+    <figure class="cluster" id="cluster" aria-labelledby="cluster-cap">
+      <!-- art:cluster --><div class="binnacle"><svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><radialGradient id="face-grad"><stop class="g0" offset="0"/><stop class="g1" offset="1"/></radialGradient></defs></svg><div class="gauge" id="gauge-v"><p class="legend">Frame height</p><div class="dial" id="dial-v" style="--a:-40.00deg;--g:0.00deg" data-ghost><svg class="face" viewBox="0 0 320 320" aria-hidden="true"><circle class="rim" cx="160" cy="160" r="152"/><path class="red" d="M68.08 50.46A143 143 0 0 1 283.84 231.50"/><g class="ticks"><line class="mj" x1="52.6" y1="222.0" x2="40.5" y2="229.0"/><line class="mn" x1="34.5" y1="197.6" x2="27.8" y2="199.6"/><line class="mn" x1="29.2" y1="167.6" x2="22.2" y2="168.0"/><line class="mj" x1="37.9" y1="138.5" x2="24.1" y2="136.0"/><line class="mn" x1="39.7" y1="108.1" x2="33.3" y2="105.3"/><line class="mn" x1="54.9" y1="81.8" x2="49.3" y2="77.6"/><line class="mj" x1="80.3" y1="65.0" x2="71.3" y2="54.3"/><line class="mn" x1="101.2" y1="42.9" x2="98.1" y2="36.7"/><line class="mn" x1="129.8" y1="32.5" x2="128.2" y2="25.7"/><line class="mj" x1="160.0" y1="36.0" x2="160.0" y2="22.0"/><line class="mn" x1="190.2" y1="32.5" x2="191.8" y2="25.7"/><line class="mn" x1="218.8" y1="42.9" x2="221.9" y2="36.7"/><line class="mj" x1="239.7" y1="65.0" x2="248.7" y2="54.3"/><line class="mn" x1="265.1" y1="81.8" x2="270.7" y2="77.6"/><line class="mn" x1="280.3" y1="108.1" x2="286.7" y2="105.3"/><line class="mj" x1="282.1" y1="138.5" x2="295.9" y2="136.0"/><line class="mn" x1="290.8" y1="167.6" x2="297.8" y2="168.0"/><line class="mn" x1="285.5" y1="197.6" x2="292.2" y2="199.6"/><line class="mj" x1="267.4" y1="222.0" x2="279.5" y2="229.0"/></g><g class="nums"><text x="73.4" y="216.0">0</text><text x="61.5" y="148.6">360</text><text class="lim" x="95.7" y="89.4">720</text><text x="160.0" y="66.0">1080</text><text x="224.3" y="89.4">1440</text><text x="258.5" y="148.6">1800</text><text x="246.6" y="216.0">2160</text></g><polygon class="ghost" points="155.40,50.00 158.40,9.00 161.60,9.00 164.60,50.00"/><polygon class="needle" points="155.40,50.00 158.40,9.00 161.60,9.00 164.60,50.00"/></svg><p class="hub"><b class="hub-val" data-s="fits">720</b><span class="hub-from">from 1080</span><span class="hub-state" data-s="fits">Fits</span><code class="hub-codec">h264 8-bit</code></p></div></div><div class="console"><p class="legend"><span>carify 1.1.1</span><span>Recorded run · Ubuntu 24.04 · ffmpeg 6.1.1</span></p><div class="screen"><pre class="term" id="term"><code><span class="l-cmd"><span class="ps">$</span> carify road-trip.mkv</span><span class="l-tag"><b>probe </b> video hevc/yuv420p10le/Main 10 1920x1080  audio ac3 6ch</span><span class="l-tag"><b>video </b> re-encode to H.264 High 8-bit, fits 1280x720 (slow)</span><span class="l-tag"><b>audio </b> re-encode to AAC stereo 160k</span><span class="l-progress">frame=  720 fps=136 q=-1.0 Lsize=    8706kB time=00:00:29.99 bitrate=2377.8kbits/s speed=5.67x</span><span class="l-ok"><b>wrote </b> ./road-trip-car.mp4 (8 MB)</span><span class="l-tag"><b>usb   </b> copying to /media/runner/MOVIES</span><span class="l-ok"><b>usb   </b> done; safe to remove the stick</span></code></pre><div class="bar" aria-hidden="true"><i id="bar" style="--p:1"></i></div><p class="usb" id="usb" data-s="done"><b>USB</b> <span class="w-none">waiting</span><span class="w-copy">copying</span><span class="w-done">safe to remove</span></p></div></div><div class="gauge" id="gauge-a"><p class="legend">Audio channels</p><div class="dial" id="dial-a" style="--a:-60.00deg;--g:60.00deg" data-ghost><svg class="face" viewBox="0 0 320 320" aria-hidden="true"><circle class="rim" cx="160" cy="160" r="152"/><path class="red" d="M36.16 88.50A143 143 0 0 1 283.84 231.50"/><g class="ticks"><line class="mj" x1="52.6" y1="222.0" x2="40.5" y2="229.0"/><line class="mn" x1="33.5" y1="193.9" x2="26.7" y2="195.7"/><line class="mj" x1="36.0" y1="160.0" x2="22.0" y2="160.0"/><line class="mn" x1="33.5" y1="126.1" x2="26.7" y2="124.3"/><line class="mj" x1="52.6" y1="98.0" x2="40.5" y2="91.0"/><line class="mn" x1="67.4" y1="67.4" x2="62.4" y2="62.4"/><line class="mj" x1="98.0" y1="52.6" x2="91.0" y2="40.5"/><line class="mn" x1="126.1" y1="33.5" x2="124.3" y2="26.7"/><line class="mj" x1="160.0" y1="36.0" x2="160.0" y2="22.0"/><line class="mn" x1="193.9" y1="33.5" x2="195.7" y2="26.7"/><line class="mj" x1="222.0" y1="52.6" x2="229.0" y2="40.5"/><line class="mn" x1="252.6" y1="67.4" x2="257.6" y2="62.4"/><line class="mj" x1="267.4" y1="98.0" x2="279.5" y2="91.0"/><line class="mn" x1="286.5" y1="126.1" x2="293.3" y2="124.3"/><line class="mj" x1="284.0" y1="160.0" x2="298.0" y2="160.0"/><line class="mn" x1="286.5" y1="193.9" x2="293.3" y2="195.7"/><line class="mj" x1="267.4" y1="222.0" x2="279.5" y2="229.0"/></g><g class="nums"><text x="73.4" y="216.0">0</text><text x="60.0" y="166.0">1</text><text class="lim" x="73.4" y="116.0">2</text><text x="110.0" y="79.4">3</text><text x="160.0" y="66.0">4</text><text x="210.0" y="79.4">5</text><text x="246.6" y="116.0">6</text><text x="260.0" y="166.0">7</text><text x="246.6" y="216.0">8</text></g><polygon class="ghost" points="155.40,50.00 158.40,9.00 161.60,9.00 164.60,50.00"/><polygon class="needle" points="155.40,50.00 158.40,9.00 161.60,9.00 164.60,50.00"/></svg><p class="hub"><b class="hub-val" data-s="fits">2</b><span class="hub-from">from 6</span><span class="hub-state" data-s="fits">Fits</span><code class="hub-codec">aac stereo</code></p></div></div></div><!-- /art:cluster -->
+      <figcaption id="cluster-cap">
+        <div class="files" role="group" aria-label="Replay a recorded run"><!-- art:files --><button type="button" class="file" data-run="road-trip" aria-pressed="true"><code>road-trip.mkv</code><span>HEVC 10-bit 1080p with AC3 5.1</span><em>Won&#x27;t play</em></button><button type="button" class="file" data-run="cartoons" aria-pressed="false"><code>cartoons.mkv</code><span>H.264 720p with AC3 5.1</span><em>Plays without sound</em></button><button type="button" class="file" data-run="phone-video" aria-pressed="false"><code>phone-video.mp4</code><span>portrait 1080x1920 H.264 with AAC stereo</span><em>Too tall</em></button><button type="button" class="file" data-run="dashcam" aria-pressed="false"><code>dashcam.mp4</code><span>H.264 720p with AAC stereo</span><em>Already fine</em></button><!-- /art:files --></div>
+        <p class="cap-note">Replays of real runs, at the speed they ran: <!-- art:recorded -->carify 1.1.1 on 30-second test clips, recorded on GitHub's Ubuntu 24.04 runner with ffmpeg 6.1.1<!-- /art:recorded --> (<a href="https://github.com/Real-Fruit-Snacks/carify/blob/main/docs/art/record.py">how</a>). The redlines are carify's limits: 720 pixels high, or <code>--max-height</code>, and 2 audio channels.</p>
+        <p class="sr-only" id="cluster-say" aria-live="polite"></p>
+      </figcaption>
+    </figure>
   </div>
 </div>
 
-<section id="why">
-  <div class="wrap two">
-    <div>
-      <p class="label">Why</p>
-      <h2>"Unsupported file", or no sound</h2>
-    </div>
-    <div>
-      <p>That's what a Uconnect unit shows for anything outside its narrow format. I wrote carify so I could stop re-learning the ffmpeg flags: one command per file, and the stick is ready.</p>
-      <p class="mute">A file that already complies takes seconds, because its streams are copied. A re-encode takes as long as libx264 needs on your machine.</p>
-    </div>
-  </div>
-</section>
-
-<section id="how">
-  <div class="wrap two">
-    <div>
-      <p class="label">How it works</p>
-      <h2>What happens to a file</h2>
-      <p class="mute">Nothing is scaled up, and nothing that already plays is touched.</p>
-    </div>
-    <ol class="steps">
-      <li><code>ffprobe</code> reads the first video stream (cover art is skipped) and the first audio stream.</li>
-      <li>Video is copied when it is H.264, <code>yuv420p</code>, Baseline/Main/High, level 4.1 or lower, and fits 1280x720. Otherwise it is re-encoded with <code>libx264 -preset veryfast -crf 20</code> at High 4.1 and scaled down to fit, aspect ratio kept.</li>
-      <li>Audio is copied when it is AAC with two channels or fewer. Otherwise it becomes AAC stereo at 160 kbps. A file with no audio is converted silent, with a warning.</li>
-      <li>Subtitles, attachments and extra audio tracks are dropped.</li>
-      <li>The MP4 is written with <code>+faststart</code> to a hidden <code>.part</code> file and renamed when ffmpeg finishes, so a cancelled run leaves nothing half-written.</li>
-      <li>If a stick labelled <b>MOVIES</b> is mounted, the file is copied onto it. Rename your stick once and you never drag files again.</li>
-    </ol>
-  </div>
-</section>
-
-<section id="use">
+<section id="why" class="why" aria-labelledby="why-h">
   <div class="wrap">
-    <p class="label">Usage</p>
-    <h2>One file per run</h2>
-    <div class="cli-grid">
-      <pre><code><span class="c"># bash: Linux, macOS, WSL</span>
-carify movie.mkv                <span class="c"># writes movie-car.mp4 next to it</span>
-carify movie.mkv ~/out.mp4      <span class="c"># explicit output path</span>
-carify --force movie.mkv        <span class="c"># overwrite an existing output</span>
-carify --max-height 1080 movie.mkv
-carify --no-usb movie.mkv       <span class="c"># don't copy to the stick</span></code></pre>
-      <pre><code><span class="c"># Windows PowerShell 5.1 and PowerShell 7</span>
-carify.ps1 movie.mkv
-carify.ps1 -Force -MaxHeight 1080 movie.mkv
-carify.ps1 -NoUsb movie.mkv
-Get-Help carify.ps1 -Full
-
-<span class="c"># a whole folder</span>
-Get-ChildItem *.mkv | ForEach-Object { carify.ps1 $_.FullName }</code></pre>
-    </div>
+    <h2 id="why-h" class="sr-only">Why it exists</h2>
+    <p class="big">Anything outside that format shows up on the head unit as an unsupported file, or plays with no sound. I wrote carify so I could stop re-learning the ffmpeg flags for it: one command per file, and the stick is ready.</p>
+    <p class="aside">A file that already fits is copied, not re-encoded, so it takes about as long as reading it: <code>dashcam.mp4</code> above took <!-- art:t-dashcam -->0.3&nbsp;s<!-- /art:t-dashcam -->. A re-encode runs as fast as libx264 manages on your machine. <code>road-trip.mkv</code>, 30&nbsp;s of 1080p HEVC, took <!-- art:t-road-trip -->5.9&nbsp;s<!-- /art:t-road-trip --> on GitHub's runner.</p>
   </div>
 </section>
 
-<section id="config">
-  <div class="wrap two">
-    <div>
-      <p class="label">Configuration</p>
-      <h2>Flags and environment</h2>
-      <p class="mute">The installers also read <code>CARIFY_BIN</code> (install folder) and <code>CARIFY_REF</code> (a tag such as <code>v1.1.1</code> instead of <code>main</code>).</p>
+<section id="how" class="how" aria-labelledby="how-h">
+  <div class="wrap how-grid">
+    <div class="how-intro">
+      <h2 id="how-h">Where the line is</h2>
+      <p><code>ffprobe</code> reads the first video stream (cover art is skipped) and the first audio stream. A stream is copied when it's inside every line in its rows, and re-encoded when it isn't.</p>
+      <p class="mute">These limits are the common denominator that has worked across Uconnect generations, not a published spec.</p>
     </div>
-    <table>
-      <tr><th>Setting</th><th>Does</th></tr>
-      <tr><td>--max-height</td><td>Largest frame height, default 720. Width limit is height x 16/9. Try 1080 if your unit handles it.</td></tr>
-      <tr><td>CARIFY_USB_DIR</td><td>Copy to this folder instead of looking for a MOVIES stick</td></tr>
-      <tr><td>CARIFY_THEME</td><td><code>dayshift</code> for light terminal backgrounds</td></tr>
-      <tr><td>NO_COLOR</td><td>Any value turns colour off</td></tr>
+    <table class="limits">
+      <thead><tr><th scope="col">Stream</th><th scope="col">Copied if it's</th><th scope="col">Otherwise carify</th></tr></thead>
+      <tbody>
+        <tr><th scope="rowgroup" rowspan="4">Video</th><td class="line">H.264</td><td rowspan="3">Re-encodes it with <code>libx264 -preset veryfast -crf&nbsp;20</code>, High profile, level 4.1</td></tr>
+        <tr><td class="line">8-bit 4:2:0 (<code>yuv420p</code>)</td></tr>
+        <tr><td class="line">Baseline, Main or High, level 4.1 or lower</td></tr>
+        <tr><td class="line">Inside 1280×720. <code>--max-height</code> moves the line; the width limit is height × 16/9.</td><td>Re-encodes it, scaled down to fit with the aspect ratio kept. Nothing is scaled up.</td></tr>
+        <tr><th scope="rowgroup" rowspan="2">Audio</th><td class="line">AAC, two channels or fewer</td><td>Re-encodes it to AAC stereo at 160&nbsp;kbps</td></tr>
+        <tr><td colspan="2">A file with no audio track is converted silent, with a warning.</td></tr>
+        <tr><th scope="row">The rest</th><td colspan="2">Subtitles, attachments and extra audio tracks are dropped.</td></tr>
+        <tr><th scope="row">File</th><td colspan="2">An MP4 written with <code>+faststart</code> to a hidden <code>.part</code> file and renamed when ffmpeg finishes, so a cancelled run leaves nothing half-written.</td></tr>
+        <tr><th scope="row">Stick</th><td colspan="2">If a stick labelled <b>MOVIES</b> is mounted, the file is copied onto it. Rename your stick once and you never drag files again.</td></tr>
+      </tbody>
     </table>
   </div>
 </section>
 
-<section id="tested">
-  <div class="wrap two">
-    <div>
-      <p class="label">Tested on</p>
-      <ul class="plain">
-        <li>Ubuntu 24.04 · bash 5.2 · ffmpeg 6.1.1 (all 40 checks in <code>tests/run.sh</code>)</li>
-        <li>CI on every push: Ubuntu (bash, PowerShell 7), macOS (bash 5 and the system <code>/bin/bash</code> 3.2), Windows (PowerShell 7 and Windows PowerShell 5.1)</li>
-        <li><em>Not</em> tested: a list of head units by model year. The limits are the common denominator that has worked across Uconnect generations, not a published spec.</li>
-      </ul>
-    </div>
-    <div>
-      <p class="label">Known issues</p>
-      <ul class="plain">
-        <li>HDR sources (HDR10, HLG) are not tone-mapped. carify warns, and the result looks washed out.</li>
-        <li>Only the first audio track is kept.</li>
-        <li>Subtitles are dropped, not burned in.</li>
-        <li>FAT32 sticks can't hold files over 4 GB. Format the stick as exFAT or use a lower <code>--max-height</code>.</li>
-      </ul>
+<section id="runs" class="runs" aria-labelledby="runs-h">
+  <div class="wrap">
+    <h2 id="runs-h">The four test runs</h2>
+    <p class="lede">The clips are 30&nbsp;seconds of ffmpeg's <code>testsrc2</code> picture with a sine tone, made to fail in the four ways that matter. CI records these runs again on every push and fails if carify's output changes.</p>
+    <div class="scroll" tabindex="0" role="region" aria-labelledby="runs-h">
+      <table class="runs-table">
+        <thead><tr><th scope="col">Clip</th><th scope="col">Came in as</th><th scope="col">carify</th><th scope="col">Took</th><th scope="col">Went out as</th></tr></thead>
+        <tbody><!-- art:runs --><tr><th scope="row"><code>road-trip.mkv</code></th><td>hevc Main 10, 1920×1080, ac3 5.1</td><td>Video re-encoded, audio re-encoded</td><td class="num">5.9&nbsp;s <span>(5.67x)</span></td><td>h264 High 4.1, 1280×720, aac stereo, 8&nbsp;MB</td></tr><tr><th scope="row"><code>cartoons.mkv</code></th><td>h264 High, 1280×720, ac3 5.1</td><td>Video copied, audio re-encoded</td><td class="num">0.9&nbsp;s <span>(50.7x)</span></td><td>h264 High 3.1, 1280×720, aac stereo, 9&nbsp;MB</td></tr><tr><th scope="row"><code>phone-video.mp4</code></th><td>h264 High, 1080×1920, aac stereo</td><td>Video re-encoded, audio copied</td><td class="num">3.6&nbsp;s <span>(9.26x)</span></td><td>h264 High 4.1, 406×720, aac stereo, 2&nbsp;MB</td></tr><tr><th scope="row"><code>dashcam.mp4</code></th><td>h264 Main, 1280×720, aac stereo</td><td>Video copied, audio copied</td><td class="num">0.3&nbsp;s <span>(1.3e+03x)</span></td><td>h264 Main 3.1, 1280×720, aac stereo, 10&nbsp;MB</td></tr><!-- /art:runs --></tbody>
+      </table>
     </div>
   </div>
 </section>
 
+<section id="use" class="use" aria-labelledby="use-h">
+  <div class="wrap">
+    <h2 id="use-h">Usage</h2>
+    <div class="cmds">
+      <div>
+        <p class="cmd-head">bash 3.2 or later: Linux, macOS, WSL</p>
+<pre><code>carify movie.mkv                  <span class="c"># writes movie-car.mp4 next to it</span>
+carify movie.mkv ~/out.mp4        <span class="c"># explicit output path</span>
+carify --force movie.mkv          <span class="c"># overwrite an existing output</span>
+carify --max-height 1080 movie.mkv
+carify --no-usb movie.mkv         <span class="c"># don't copy to the stick</span>
+for f in *.mkv; do carify "$f"; done</code></pre>
+      </div>
+      <div>
+        <p class="cmd-head">Windows PowerShell 5.1 and PowerShell 7</p>
+<pre><code>carify.ps1 movie.mkv
+carify.ps1 movie.mkv D:\out.mp4 -Force
+carify.ps1 movie.mkv -MaxHeight 1080
+carify.ps1 movie.mkv -NoUsb
+Get-Help carify.ps1 -Full
+Get-ChildItem *.mkv | ForEach-Object { carify.ps1 $_.FullName }</code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="config" class="config" aria-labelledby="config-h">
+  <div class="wrap config-grid">
+    <div>
+      <h2 id="config-h">Settings</h2>
+      <p>One file per run. The installers also read <code>CARIFY_BIN</code> (the install folder) and <code>CARIFY_REF</code> (a tag such as <code>v1.1.1</code> instead of <code>main</code>).</p>
+    </div>
+    <table class="params">
+      <thead><tr><th scope="col">Setting</th><th scope="col">Default</th><th scope="col">Does</th></tr></thead>
+      <tbody>
+        <tr><th scope="row"><code>--max-height</code><br><code>-MaxHeight</code></th><td><code>720</code></td><td>Largest frame height; the width limit is height × 16/9. Try <code>1080</code> if your unit plays it.</td></tr>
+        <tr><th scope="row"><code>CARIFY_USB_DIR</code></th><td>unset</td><td>Copy to this folder instead of looking for a MOVIES stick</td></tr>
+        <tr><th scope="row"><code>CARIFY_THEME</code></th><td><code>nightshift</code></td><td><code>dayshift</code> for light terminal backgrounds</td></tr>
+        <tr><th scope="row"><code>NO_COLOR</code></th><td>unset</td><td>Any value turns colour off</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="tested" class="tested" aria-labelledby="tested-h">
+  <div class="wrap tested-grid">
+    <div>
+      <h2 id="tested-h">Tested on</h2>
+      <ul>
+        <li><b>Ubuntu 24.04</b>, bash 5.2, ffmpeg 6.1.1: all 40 checks in <code>tests/run.sh</code>.</li>
+        <li><b>CI on every push:</b> Ubuntu (bash, PowerShell 7), macOS (bash 5 and the system <code>/bin/bash</code> 3.2), Windows (PowerShell 7 and Windows PowerShell 5.1).</li>
+        <li><b>Not tested:</b> a list of head units by model year. If a file played or failed on your car, <a href="https://github.com/Real-Fruit-Snacks/carify/issues/new/choose">an issue</a> saying which model year and head unit is the data this project is short of.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>Known issues</h2>
+      <ul>
+        <li>HDR sources (HDR10, HLG) are not tone-mapped. carify warns, and the result looks washed out.</li>
+        <li>Only the first audio track is kept. If that's commentary or the wrong language, pick the track with ffmpeg yourself.</li>
+        <li>Subtitles are dropped, not burned in.</li>
+        <li>FAT32 sticks can't hold files over 4&nbsp;GB. carify says so when the copy fails; format the stick as exFAT or use a lower <code>--max-height</code>.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+</main>
+
 <footer>
   <div class="wrap">
-    <span>MIT · <a href="https://github.com/Real-Fruit-Snacks/carify">Source</a> · <a href="https://github.com/Real-Fruit-Snacks/carify/blob/main/CHANGELOG.md">Changelog</a> · <a href="https://github.com/Real-Fruit-Snacks/carify/blob/main/SECURITY.md">Security</a></span>
-    <span><a href="https://real-fruit-snacks.github.io/">RFS</a> · Real tools. No filler. · <a href="https://github.com/Real-Fruit-Snacks/rfs-brand/blob/main/BRAND.md">Brand</a></span>
+    <p>MIT. Not affiliated with Stellantis or Uconnect. Set in Saira and JetBrains Mono.</p>
+    <p><a href="https://github.com/Real-Fruit-Snacks/carify">Source</a> · <a href="https://github.com/Real-Fruit-Snacks/carify/blob/main/CHANGELOG.md">Changelog</a> · <a href="https://github.com/Real-Fruit-Snacks/carify/blob/main/SECURITY.md">Security</a> · <a href="https://real-fruit-snacks.github.io/">Real-Fruit-Snacks</a></p>
   </div>
 </footer>
 
-<script src="assets/site.js"></script>
+<script src="runs.js"></script>
+<script src="script.js"></script>
 </body>
 </html>

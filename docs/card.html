@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<!-- The GitHub social preview, 1280 x 640. Render from the repo root with killer-repo's card.mjs:
+       node card.mjs docs/card.html --out docs/assets/social.png
+     It shows the README cluster's still frame (docs/assets/cluster-dark.svg, finished road-trip.mkv) under the name. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  @font-face { font-family: "Saira"; font-weight: 100 900; font-stretch: 50% 125%; src: url(fonts/saira-latin-var.woff2) format("woff2"); }
+  html, body { margin: 0; width: 1280px; height: 640px; background: #0C0D10; overflow: hidden; }
+  body { display: grid; place-content: center; gap: 26px; }
+  .row { display: flex; align-items: flex-end; justify-content: space-between; width: 940px; }
+  h1 { margin: 0; font: 800 96px/0.9 "Saira", sans-serif; font-stretch: 125%; color: #E8E6E1; letter-spacing: .01em; }
+  h1::after { content: ""; display: block; height: 7px; margin-top: 16px; border-radius: 4px; background: linear-gradient(90deg, #636872 0 68%, #F06292 68% 100%); }
+  p { margin: 0 0 6px; font: 500 31px/1.2 "Saira", sans-serif; color: #8A8F99; text-align: right; }
+  img { display: block; width: 940px; height: 442px; }
+</style>
+</head>
+<body>
+  <div class="row"><h1>carify</h1><p>Convert video for Uconnect<br>USB playback, via ffmpeg</p></div>
+  <img id="cluster" alt="">
+  <script>
+    // The still frame: the SVG without its animation rules, which is what reduced-motion readers see.
+    fetch('assets/cluster-dark.svg').then(function (r) { return r.text(); }).then(function (t) {
+      t = t.replace(/@media \(prefers-reduced-motion:no-preference\)\{.*\}<\/style>/s, '</style>');
+      document.getElementById('cluster').src = URL.createObjectURL(new Blob([t], { type: 'image/svg+xml' }));
+    });
+  </script>
+</body>
+</html>

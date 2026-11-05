@@ -1,0 +1,470 @@
+{
+ "recorded": {
+  "bash": "5.2.21(1)-release",
+  "carify": "carify 1.1.1",
+  "clips": "30 s of ffmpeg's testsrc2 picture and a sine tone",
+  "ffmpeg": "ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers",
+  "os": "Ubuntu 24.04.5 LTS"
+ },
+ "runs": [
+  {
+   "cmd": "carify road-trip.mkv",
+   "events": [
+    [
+     0.11,
+     "\n",
+     "probe  video hevc/yuv420p10le/Main 10 1920x1080  audio ac3 6ch"
+    ],
+    [
+     0.11,
+     "\n",
+     "video  re-encode to H.264 High 8-bit, fits 1280x720 (slow)"
+    ],
+    [
+     0.11,
+     "\n",
+     "audio  re-encode to AAC stereo 160k"
+    ],
+    [
+     0.21,
+     "\r",
+     "frame=    0 fps=0.0 q=0.0 size=       0kB time=00:00:00.12 bitrate=   3.0kbits/s speed=5.44x"
+    ],
+    [
+     0.69,
+     "\r",
+     "frame=   49 fps=0.0 q=25.0 size=     512kB time=00:00:02.96 bitrate=1414.6kbits/s speed=5.62x"
+    ],
+    [
+     1.2,
+     "\r",
+     "frame=  114 fps=110 q=25.0 size=    1280kB time=00:00:05.69 bitrate=1841.0kbits/s speed=5.51x"
+    ],
+    [
+     1.7,
+     "\r",
+     "frame=  182 fps=119 q=25.0 size=    2048kB time=00:00:08.53 bitrate=1966.1kbits/s speed=5.56x"
+    ],
+    [
+     2.2,
+     "\r",
+     "frame=  251 fps=123 q=25.0 size=    2816kB time=00:00:11.34 bitrate=2032.6kbits/s speed=5.58x"
+    ],
+    [
+     2.7,
+     "\r",
+     "frame=  322 fps=127 q=25.0 size=    3840kB time=00:00:14.35 bitrate=2191.1kbits/s speed=5.66x"
+    ],
+    [
+     3.2,
+     "\r",
+     "frame=  391 fps=129 q=25.0 size=    4608kB time=00:00:17.23 bitrate=2190.0kbits/s speed=5.68x"
+    ],
+    [
+     3.7,
+     "\r",
+     "frame=  461 fps=130 q=25.0 size=    5376kB time=00:00:20.16 bitrate=2184.6kbits/s speed= 5.7x"
+    ],
+    [
+     4.21,
+     "\r",
+     "frame=  533 fps=132 q=25.0 size=    6400kB time=00:00:23.16 bitrate=2263.0kbits/s speed=5.73x"
+    ],
+    [
+     4.71,
+     "\r",
+     "frame=  603 fps=133 q=25.0 size=    7168kB time=00:00:26.06 bitrate=2252.5kbits/s speed=5.73x"
+    ],
+    [
+     5.21,
+     "\r",
+     "frame=  672 fps=133 q=25.0 size=    7936kB time=00:00:28.94 bitrate=2245.7kbits/s speed=5.73x"
+    ],
+    [
+     5.45,
+     "\n",
+     "frame=  720 fps=136 q=-1.0 Lsize=    8706kB time=00:00:29.99 bitrate=2377.8kbits/s speed=5.67x"
+    ],
+    [
+     5.47,
+     "\n",
+     "wrote  ./road-trip-car.mp4 (8 MB)"
+    ],
+    [
+     5.47,
+     "\n",
+     "usb    copying to /media/runner/MOVIES"
+    ],
+    [
+     5.93,
+     "\n",
+     "usb    done; safe to remove the stick"
+    ]
+   ],
+   "file": "road-trip.mkv",
+   "in": {
+    "audio": {
+     "channel_layout": "5.1(side)",
+     "channels": 6,
+     "codec_name": "ac3"
+    },
+    "bytes": 13766169,
+    "duration": 30.0,
+    "video": {
+     "codec_name": "hevc",
+     "height": 1080,
+     "level": 120,
+     "pix_fmt": "yuv420p10le",
+     "profile": "Main 10",
+     "width": 1920
+    }
+   },
+   "name": "road-trip",
+   "out": {
+    "audio": {
+     "channel_layout": "stereo",
+     "channels": 2,
+     "codec_name": "aac",
+     "profile": "LC"
+    },
+    "bytes": 8915038,
+    "duration": 30.02,
+    "video": {
+     "codec_name": "h264",
+     "height": 720,
+     "level": 41,
+     "pix_fmt": "yuv420p",
+     "profile": "High",
+     "width": 1280
+    }
+   },
+   "screen": [
+    "probe  video hevc/yuv420p10le/Main 10 1920x1080  audio ac3 6ch",
+    "video  re-encode to H.264 High 8-bit, fits 1280x720 (slow)",
+    "audio  re-encode to AAC stereo 160k",
+    "frame=  720 fps=136 q=-1.0 Lsize=    8706kB time=00:00:29.99 bitrate=2377.8kbits/s speed=5.67x",
+    "wrote  ./road-trip-car.mp4 (8 MB)",
+    "usb    copying to /media/runner/MOVIES",
+    "usb    done; safe to remove the stick"
+   ],
+   "seconds": 5.9,
+   "why": "won't play: HEVC 10-bit 1080p with AC3 5.1"
+  },
+  {
+   "cmd": "carify cartoons.mkv",
+   "events": [
+    [
+     0.1,
+     "\n",
+     "probe  video h264/yuv420p/High 1280x720  audio ac3 6ch"
+    ],
+    [
+     0.1,
+     "\n",
+     "video  copy"
+    ],
+    [
+     0.1,
+     "\n",
+     "audio  re-encode to AAC stereo 160k"
+    ],
+    [
+     0.15,
+     "\r",
+     "size=       0kB time=-00:00:00.03 bitrate=  -0.0kbits/s speed=N/A"
+    ],
+    [
+     0.65,
+     "\r",
+     "size=    7680kB time=00:00:25.17 bitrate=2499.4kbits/s speed=50.3x"
+    ],
+    [
+     0.74,
+     "\n",
+     "size=    9298kB time=00:00:29.99 bitrate=2539.3kbits/s speed=50.7x"
+    ],
+    [
+     0.75,
+     "\n",
+     "wrote  ./cartoons-car.mp4 (9 MB)"
+    ],
+    [
+     0.75,
+     "\n",
+     "usb    copying to /media/runner/MOVIES"
+    ],
+    [
+     0.89,
+     "\n",
+     "usb    done; safe to remove the stick"
+    ]
+   ],
+   "file": "cartoons.mkv",
+   "in": {
+    "audio": {
+     "channel_layout": "5.1(side)",
+     "channels": 6,
+     "codec_name": "ac3"
+    },
+    "bytes": 10587765,
+    "duration": 30.0,
+    "video": {
+     "codec_name": "h264",
+     "height": 720,
+     "level": 31,
+     "pix_fmt": "yuv420p",
+     "profile": "High",
+     "width": 1280
+    }
+   },
+   "name": "cartoons",
+   "out": {
+    "audio": {
+     "channel_layout": "stereo",
+     "channels": 2,
+     "codec_name": "aac",
+     "profile": "LC"
+    },
+    "bytes": 9520832,
+    "duration": 30.02,
+    "video": {
+     "codec_name": "h264",
+     "height": 720,
+     "level": 31,
+     "pix_fmt": "yuv420p",
+     "profile": "High",
+     "width": 1280
+    }
+   },
+   "screen": [
+    "probe  video h264/yuv420p/High 1280x720  audio ac3 6ch",
+    "video  copy",
+    "audio  re-encode to AAC stereo 160k",
+    "size=    9298kB time=00:00:29.99 bitrate=2539.3kbits/s speed=50.7x",
+    "wrote  ./cartoons-car.mp4 (9 MB)",
+    "usb    copying to /media/runner/MOVIES",
+    "usb    done; safe to remove the stick"
+   ],
+   "seconds": 0.9,
+   "why": "plays without sound: H.264 720p with AC3 5.1"
+  },
+  {
+   "cmd": "carify phone-video.mp4",
+   "events": [
+    [
+     0.12,
+     "\n",
+     "probe  video h264/yuv420p/High 1080x1920  audio aac 2ch"
+    ],
+    [
+     0.12,
+     "\n",
+     "video  re-encode to H.264 High 8-bit, fits 1280x720 (slow)"
+    ],
+    [
+     0.12,
+     "\n",
+     "audio  copy"
+    ],
+    [
+     0.2,
+     "\r",
+     "frame=    0 fps=0.0 q=0.0 size=       0kB time=00:00:00.12 bitrate=   3.0kbits/s speed=8.56x"
+    ],
+    [
+     0.69,
+     "\r",
+     "frame=  116 fps=0.0 q=26.0 size=     256kB time=00:00:04.67 bitrate= 449.0kbits/s speed=8.97x"
+    ],
+    [
+     1.19,
+     "\r",
+     "frame=  261 fps=255 q=26.0 size=     512kB time=00:00:09.49 bitrate= 441.9kbits/s speed=9.29x"
+    ],
+    [
+     1.69,
+     "\r",
+     "frame=  403 fps=265 q=26.0 size=     768kB time=00:00:14.20 bitrate= 442.8kbits/s speed=9.33x"
+    ],
+    [
+     2.19,
+     "\r",
+     "frame=  545 fps=269 q=26.0 size=    1280kB time=00:00:18.96 bitrate= 552.9kbits/s speed=9.37x"
+    ],
+    [
+     2.69,
+     "\r",
+     "frame=  683 fps=270 q=26.0 size=    1536kB time=00:00:23.57 bitrate= 533.8kbits/s speed=9.33x"
+    ],
+    [
+     3.2,
+     "\r",
+     "frame=  823 fps=272 q=26.0 size=    2048kB time=00:00:28.20 bitrate= 594.9kbits/s speed=9.32x"
+    ],
+    [
+     3.41,
+     "\n",
+     "frame=  900 fps=278 q=-1.0 Lsize=    2293kB time=00:00:29.99 bitrate= 626.3kbits/s speed=9.26x"
+    ],
+    [
+     3.42,
+     "\n",
+     "wrote  ./phone-video-car.mp4 (2 MB)"
+    ],
+    [
+     3.42,
+     "\n",
+     "usb    copying to /media/runner/MOVIES"
+    ],
+    [
+     3.55,
+     "\n",
+     "usb    done; safe to remove the stick"
+    ]
+   ],
+   "file": "phone-video.mp4",
+   "in": {
+    "audio": {
+     "channel_layout": "stereo",
+     "channels": 2,
+     "codec_name": "aac",
+     "profile": "LC"
+    },
+    "bytes": 22441860,
+    "duration": 30.0,
+    "video": {
+     "codec_name": "h264",
+     "height": 1920,
+     "level": 40,
+     "pix_fmt": "yuv420p",
+     "profile": "High",
+     "width": 1080
+    }
+   },
+   "name": "phone-video",
+   "out": {
+    "audio": {
+     "channel_layout": "stereo",
+     "channels": 2,
+     "codec_name": "aac",
+     "profile": "LC"
+    },
+    "bytes": 2348389,
+    "duration": 30.0,
+    "video": {
+     "codec_name": "h264",
+     "height": 720,
+     "level": 41,
+     "pix_fmt": "yuv420p",
+     "profile": "High",
+     "width": 406
+    }
+   },
+   "screen": [
+    "probe  video h264/yuv420p/High 1080x1920  audio aac 2ch",
+    "video  re-encode to H.264 High 8-bit, fits 1280x720 (slow)",
+    "audio  copy",
+    "frame=  900 fps=278 q=-1.0 Lsize=    2293kB time=00:00:29.99 bitrate= 626.3kbits/s speed=9.26x",
+    "wrote  ./phone-video-car.mp4 (2 MB)",
+    "usb    copying to /media/runner/MOVIES",
+    "usb    done; safe to remove the stick"
+   ],
+   "seconds": 3.6,
+   "why": "too tall: portrait 1080x1920 H.264 with AAC stereo"
+  },
+  {
+   "cmd": "carify dashcam.mp4",
+   "events": [
+    [
+     0.11,
+     "\n",
+     "probe  video h264/yuv420p/Main 1280x720  audio aac 2ch"
+    ],
+    [
+     0.11,
+     "\n",
+     "video  copy"
+    ],
+    [
+     0.11,
+     "\n",
+     "audio  copy"
+    ],
+    [
+     0.15,
+     "\r",
+     "size=       0kB time=-00:00:00.06 bitrate=  -0.0kbits/s speed=N/A"
+    ],
+    [
+     0.17,
+     "\n",
+     "size=   10351kB time=00:00:29.99 bitrate=2827.0kbits/s speed=1.3e+03x"
+    ],
+    [
+     0.18,
+     "\n",
+     "wrote  ./dashcam-car.mp4 (10 MB)"
+    ],
+    [
+     0.18,
+     "\n",
+     "usb    copying to /media/runner/MOVIES"
+    ],
+    [
+     0.33,
+     "\n",
+     "usb    done; safe to remove the stick"
+    ]
+   ],
+   "file": "dashcam.mp4",
+   "in": {
+    "audio": {
+     "channel_layout": "stereo",
+     "channels": 2,
+     "codec_name": "aac",
+     "profile": "LC"
+    },
+    "bytes": 10599278,
+    "duration": 30.0,
+    "video": {
+     "codec_name": "h264",
+     "height": 720,
+     "level": 31,
+     "pix_fmt": "yuv420p",
+     "profile": "Main",
+     "width": 1280
+    }
+   },
+   "name": "dashcam",
+   "out": {
+    "audio": {
+     "channel_layout": "stereo",
+     "channels": 2,
+     "codec_name": "aac",
+     "profile": "LC"
+    },
+    "bytes": 10599278,
+    "duration": 30.0,
+    "video": {
+     "codec_name": "h264",
+     "height": 720,
+     "level": 31,
+     "pix_fmt": "yuv420p",
+     "profile": "Main",
+     "width": 1280
+    }
+   },
+   "screen": [
+    "probe  video h264/yuv420p/Main 1280x720  audio aac 2ch",
+    "video  copy",
+    "audio  copy",
+    "size=   10351kB time=00:00:29.99 bitrate=2827.0kbits/s speed=1.3e+03x",
+    "wrote  ./dashcam-car.mp4 (10 MB)",
+    "usb    copying to /media/runner/MOVIES",
+    "usb    done; safe to remove the stick"
+   ],
+   "seconds": 0.3,
+   "why": "already fine: H.264 720p with AAC stereo"
+  }
+ ]
+}

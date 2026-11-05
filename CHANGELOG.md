@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+Docs
+- New README and project page: an instrument cluster replays four real carify runs, with the head unit's limits as redlines. The runs are recorded in CI from generated test clips, so every timing, size and output line shown is one carify printed. The old cover's example timings and sizes were not from a real run.
+- CI: the `art` job records the runs again on every push, fails if carify's output changes, and redraws the README cluster; a `links` workflow checks the links monthly.
+
 ## v1.1.1
 
 The `v1.1.0` tag was made before these fixes landed, so its scripts still have the bugs below. Use this release instead.
