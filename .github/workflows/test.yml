@@ -91,3 +91,27 @@ jobs:
         run: tests/run.sh pwsh
       - name: Windows PowerShell 5.1
         run: tests/run.sh powershell
+
+  art:
+    # The README cluster and the project page replay real carify runs from docs/art/runs.json.
+    # Record them again here and fail if carify's output no longer matches (timings and sizes aside).
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - name: ffmpeg
+        run: |
+          sudo rm -f /var/lib/man-db/auto-update
+          sudo apt-get update -q
+          sudo apt-get install -yq --no-install-recommends ffmpeg
+      - name: A stick labelled MOVIES
+        run: sudo mkdir -p "/media/$USER/MOVIES" && sudo chown "$USER" "/media/$USER/MOVIES"
+      - name: Record the runs
+        run: python3 docs/art/record.py --out "$RUNNER_TEMP/runs.json" && cat "$RUNNER_TEMP/runs.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: runs
+          path: ${{ runner.temp }}/runs.json
+      - name: docs/art/runs.json still matches
+        if: hashFiles('docs/art/runs.json') != ''
+        run: python3 docs/art/record.py --check docs/art/runs.json "$RUNNER_TEMP/runs.json"
