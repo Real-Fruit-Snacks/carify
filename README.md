@@ -19,6 +19,8 @@ irm https://raw.githubusercontent.com/Real-Fruit-Snacks/carify/main/install.ps1 
 
 Both need [ffmpeg](https://ffmpeg.org/) on your PATH: `winget install Gyan.FFmpeg`, `sudo apt install ffmpeg`, `sudo dnf install ffmpeg` or `brew install ffmpeg`. Then `carify movie.mkv`.
 
+With no network, use `carify-1.2.0-offline.zip` from the [latest release](https://github.com/Real-Fruit-Snacks/carify/releases/latest): unzip it and run `sh ./install.sh`, or `powershell -ExecutionPolicy Bypass -File .\install.ps1`, in the folder, and the installer copies the script beside it instead of downloading one. ffmpeg isn't in the zip: on Windows bring a standalone build from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) or [BtbN](https://github.com/BtbN/FFmpeg-Builds/releases) (a `gpl` one), the builds [ffmpeg.org](https://ffmpeg.org/download.html#build-windows) links to; on Linux and macOS, install it as above.
+
 The Uconnect head units in Chrysler, Jeep, Dodge and Ram vehicles play MP4 files from a USB stick, but only 8-bit H.264 at 720p or smaller with AAC stereo audio. Anything else shows up as an unsupported file or plays without sound. I wrote carify so I could stop re-learning the ffmpeg flags for that: it probes the file, re-encodes only the streams that don't comply, and copies the result onto the stick. The [project page](https://real-fruit-snacks.github.io/carify/) replays all four test runs.
 
 ## What it prints
@@ -32,7 +34,7 @@ $ carify road-trip.mkv
 probe  video hevc/yuv420p10le/Main 10 1920x1080  audio ac3 6ch
 video  re-encode to H.264 High 8-bit, fits 1280x720 (slow)
 audio  re-encode to AAC stereo 160k
-frame=  720 fps=106 q=-1.0 Lsize=    8706kB time=00:00:29.99 bitrate=2377.8kbits/s speed=4.43x
+frame=  720 fps=114 q=-1.0 Lsize=    8706kB time=00:00:29.99 bitrate=2377.8kbits/s speed=4.73x
 wrote  ./road-trip-car.mp4 (8 MB)
 usb    copying to /media/runner/MOVIES
 usb    done; safe to remove the stick
@@ -46,10 +48,10 @@ The four test clips are ffmpeg's `testsrc2` picture with a sine tone, each made 
 
 | Clip | Came in as | carify | Took | Went out as |
 |---|---|---|---|---|
-| `road-trip.mkv` | hevc Main 10, 1920×1080, ac3 5.1 | Video re-encoded, audio re-encoded | 7.5 s (4.43x) | h264 High 4.1, 1280×720, aac stereo, 8 MB |
-| `cartoons.mkv` | h264 High, 1280×720, ac3 5.1 | Video copied, audio re-encoded | 1 s (41.7x) | h264 High 3.1, 1280×720, aac stereo, 9 MB |
-| `phone-video.mp4` | h264 High, 1080×1920, aac stereo | Video re-encoded, audio copied | 3.8 s (8.79x) | h264 High 4.1, 406×720, aac stereo, 2 MB |
-| `dashcam.mp4` | h264 Main, 1280×720, aac stereo | Video copied, audio copied | 0.4 s (957x) | h264 Main 3.1, 1280×720, aac stereo, 10 MB |
+| `road-trip.mkv` | hevc Main 10, 1920×1080, ac3 5.1 | Video re-encoded, audio re-encoded | 6.6 s (4.73x) | h264 High 4.1, 1280×720, aac stereo, 8 MB |
+| `cartoons.mkv` | h264 High, 1280×720, ac3 5.1 | Video copied, audio re-encoded | 0.9 s (40.1x) | h264 High 3.1, 1280×720, aac stereo, 9 MB |
+| `phone-video.mp4` | h264 High, 1080×1920, aac stereo | Video re-encoded, audio copied | 4 s (7.84x) | h264 High 4.1, 406×720, aac stereo, 2 MB |
+| `dashcam.mp4` | h264 Main, 1280×720, aac stereo | Video copied, audio copied | 0.2 s (785x) | h264 Main 3.1, 1280×720, aac stereo, 10 MB |
 
 <!-- /art:readme-runs -->
 

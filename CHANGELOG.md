@@ -1,5 +1,23 @@
 # Changelog
 
+## v1.2.0
+
+`carify` and `carify.ps1` are unchanged apart from the version number. This release adds downloads for a machine with no network.
+
+Added
+- `carify-1.2.0-offline.zip`: both scripts, both installers, the README, the licence and this changelog. Unzip it and run `sh ./install.sh`, or `powershell -ExecutionPolicy Bypass -File .\install.ps1`, in the folder. ffmpeg isn't in it.
+- `install.sh` and `install.ps1`, run as files from a folder that also holds `carify` or `carify.ps1`, install that copy instead of downloading one. Piped to `sh` or `iex`, or with `CARIFY_URL` or `CARIFY_REF` set, they download as before.
+- `carify-1.2.0-dev-windows-x64.zip`, for working on carify on Windows with no network: the repo, PSScriptAnalyzer, the Python packages the art script uses, and `offline\setup.ps1`, which checks the toolchains and sets up from the kit. CONTRIBUTING.md has the steps.
+- `SHA256SUMS.txt`, the SHA-256 of every file in the release.
+
+Tests
+- The `offline` workflow builds both zips and runs each from a fresh folder with the network cut off: the installers and a conversion from the offline zip, and the tests, lint and art check from the dev kit. The release runs it before publishing.
+- `tests/run.sh` checks the installers both ways, and uses a Python that runs (on Windows, `python3` can be the Store's stub).
+- CI's versions are pinned in `tools/versions.env`: ShellCheck 0.11.0 (it used the runner's), Python 3.13.17 for the art job and ffmpeg 9.0.2 on Windows.
+
+Docs
+- The runs the README and the project page replay are recorded again with carify 1.2.0, so their timings changed: road-trip.mkv took 6.6 s this time, against 7.5 s.
+
 ## v1.1.2
 
 `carify`, `carify.ps1` and the installers are unchanged apart from the version number. This release is the new README and project page.
