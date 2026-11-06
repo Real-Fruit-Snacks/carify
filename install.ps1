@@ -4,7 +4,7 @@
 #   powershell -ExecutionPolicy Bypass -File .\install.ps1
 #   (run as a file next to carify.ps1, it installs that copy instead of downloading)
 # $env:CARIFY_BIN = '<dir>'   install somewhere else
-# $env:CARIFY_REF = 'v1.1.2'  install a tagged version instead of main
+# $env:CARIFY_REF = 'v1.2.0'  install a tagged version instead of main
 # $env:CARIFY_URL = '<url>'   download the script from a mirror
 & {
     $ErrorActionPreference = 'Stop'

@@ -4,7 +4,7 @@
 # Offline, in the folder unzipped from a release's carify-<version>-offline.zip:
 #   sh ./install.sh    (run as a file next to carify, it installs that copy instead of downloading)
 # CARIFY_BIN=<dir>   install somewhere else
-# CARIFY_REF=v1.1.2  install a tagged version instead of main
+# CARIFY_REF=v1.2.0  install a tagged version instead of main
 # CARIFY_URL=<url>   download the script from a mirror
 set -eu
 

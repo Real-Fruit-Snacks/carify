@@ -5,7 +5,7 @@
 # https://github.com/Real-Fruit-Snacks/carify - MIT
 set -euo pipefail
 
-CARIFY_VERSION="1.1.2"
+CARIFY_VERSION="1.2.0"
 
 usage() {
     cat <<USAGE
