@@ -13,8 +13,15 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
+      - name: Versions
+        # Pinned in tools/versions.env, which the offline dev kit reads too
+        run: grep -E '^[A-Z0-9_]+=' tools/versions.env | tr -d '\r' >> "$GITHUB_ENV"
       - name: shellcheck
-        run: shellcheck carify install.sh tests/run.sh
+        run: |
+          curl -fsSL --retry 3 "https://github.com/koalaman/shellcheck/releases/download/v$SHELLCHECK_VERSION/shellcheck-v$SHELLCHECK_VERSION.linux.x86_64.tar.xz" | tar -xJ -C "$RUNNER_TEMP"
+          sc="$RUNNER_TEMP/shellcheck-v$SHELLCHECK_VERSION/shellcheck"
+          "$sc" --version
+          "$sc" carify install.sh tests/run.sh
       - name: PSScriptAnalyzer
         shell: pwsh
         run: |
@@ -23,7 +30,7 @@ jobs:
           # loaded. Use the module if the runner image already has that version; otherwise
           # re-register the gallery if needed and install, 5 tries, 15/30/45/60 s apart.
           $modules = @(
-            @{ Name = 'PSScriptAnalyzer'; Version = '1.25.0' }
+            @{ Name = 'PSScriptAnalyzer'; Version = $env:PSSCRIPTANALYZER_VERSION }
           )
           foreach ($m in $modules) {
             if (Get-Module -ListAvailable $m.Name | Where-Object { $_.Version -eq [version]$m.Version }) {
@@ -85,8 +92,10 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v5
+      - name: Versions
+        run: grep -E '^[A-Z0-9_]+=' tools/versions.env | tr -d '\r' >> "$GITHUB_ENV"
       - name: ffmpeg
-        run: choco install ffmpeg -y --no-progress
+        run: choco install ffmpeg --version "$FFMPEG_CHOCO_VERSION" -y --no-progress
       - name: PowerShell 7
         run: tests/run.sh pwsh
       - name: Windows PowerShell 5.1
@@ -100,6 +109,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
+      - name: Versions
+        run: grep -E '^[A-Z0-9_]+=' tools/versions.env | tr -d '\r' >> "$GITHUB_ENV"
       - name: ffmpeg
         run: |
           sudo rm -f /var/lib/man-db/auto-update
@@ -117,7 +128,7 @@ jobs:
         run: python3 docs/art/record.py --check docs/art/runs.json "$RUNNER_TEMP/runs.json"
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: ${{ env.PYTHON_VERSION }}
       - name: Redraw the cluster
         run: |
           python -m pip install --quiet -r docs/art/requirements.txt

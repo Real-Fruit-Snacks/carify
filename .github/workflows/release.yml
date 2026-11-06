@@ -1,6 +1,8 @@
 # Push a tag vX.Y.Z (matching a "## vX.Y.Z" section in CHANGELOG.md) to publish a
-# release. The release carries the two scripts and their installers as assets;
-# CARIFY_REF=vX.Y.Z makes the installers fetch that tag from the repo instead.
+# release. The release carries the two scripts and their installers as assets, the offline zip
+# and the Windows dev kit (built and checked with the network cut off by offline.yml first),
+# and SHA256SUMS.txt for all of them. CARIFY_REF=vX.Y.Z makes the installers fetch that tag
+# from the repo instead.
 name: release
 on:
   push:
@@ -8,9 +10,9 @@ on:
 permissions:
   contents: write
 jobs:
-  release:
+  versions:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v5
       - name: Versions match the tag
@@ -19,8 +21,40 @@ jobs:
           grep -q "^CARIFY_VERSION=\"$v\"" carify || { echo "carify says $(grep ^CARIFY_VERSION= carify), tag is $v"; exit 1; }
           grep -q "^\$CarifyVersion = '$v'" carify.ps1 || { echo "carify.ps1 version differs from $v"; exit 1; }
           grep -q "^## v$v\$" CHANGELOG.md || { echo "CHANGELOG.md has no '## v$v' section"; exit 1; }
+
+  offline:
+    needs: versions
+    uses: ./.github/workflows/offline.yml
+    permissions:
+      contents: read
+
+  release:
+    needs: offline
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: offline-downloads
+          path: dist
+      - name: Assets
+        run: |
+          v="${GITHUB_REF_NAME#v}"
           awk -v h="## v$v" '$0 == h {on=1; next} /^## / {on=0} on' CHANGELOG.md > notes.md
+          cp carify carify.ps1 install.sh install.ps1 dist/
+          cd dist
+          ls -l
+          # The offline zip holds the same four scripts as the separate assets
+          unzip -q "carify-$v-offline.zip" -d "$RUNNER_TEMP/offline"
+          for f in carify carify.ps1 install.sh install.ps1; do cmp "$f" "$RUNNER_TEMP/offline/carify-$v/$f"; done
+          sha256sum carify carify.ps1 install.sh install.ps1 "carify-$v-offline.zip" "carify-$v-dev-windows-x64.zip" > SHA256SUMS.txt
+          cat SHA256SUMS.txt
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md carify carify.ps1 install.sh install.ps1
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          cd dist
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --notes-file ../notes.md \
+            carify carify.ps1 install.sh install.ps1 "carify-$v-offline.zip" "carify-$v-dev-windows-x64.zip" SHA256SUMS.txt

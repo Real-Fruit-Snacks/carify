@@ -1,0 +1,363 @@
+name: offline
+
+# Builds the two offline downloads a release carries, and checks that each works with no network:
+#   carify-<v>-offline.zip            both scripts and both installers, to install and run carify
+#   carify-<v>-dev-windows-x64.zip    the repo plus every package dependency (tools/build-dev-kit.ps1)
+# Each check unzips a download into a fresh folder, marks the files as downloaded the way a browser
+# and Explorer do, installs the toolchains a user would already have (ffmpeg, Python, ShellCheck),
+# and then cuts off the internet and the package registries before it installs or runs anything:
+# every proxy variable points at a closed port, pip's index and the npm registry at nothing,
+# PSGallery is unregistered, and the caches start empty. release.yml calls this before it
+# publishes; run it by hand from the Actions tab too.
+on:
+  workflow_dispatch:
+  workflow_call:
+  push:
+    branches: [main]
+    paths:
+      - carify
+      - carify.ps1
+      - install.ps1
+      - install.sh
+      - tests/**
+      - tools/**
+      - docs/art/**
+      - .github/workflows/offline.yml
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    outputs:
+      version: ${{ steps.zip.outputs.version }}
+      ffmpeg: ${{ steps.versions.outputs.ffmpeg }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Versions
+        id: versions
+        shell: bash
+        run: |
+          grep -E '^[A-Z0-9_]+=' tools/versions.env | tr -d '\r' >> "$GITHUB_ENV"
+          echo "ffmpeg=$(sed -n 's/^FFMPEG_CHOCO_VERSION=//p' tools/versions.env | tr -d '\r')" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Dev kit
+        shell: pwsh
+        run: ./tools/build-dev-kit.ps1 -OutDir dist -Python python
+      - name: Offline zip
+        id: zip
+        shell: bash
+        # The files as committed: carify and install.sh LF, the .ps1 files CRLF (.gitattributes)
+        run: |
+          v=$(sed -n 's/^CARIFY_VERSION="\(.*\)"$/\1/p' carify)
+          git -c core.autocrlf=false -c core.eol=lf archive --format=zip --prefix="carify-$v/" \
+            -o "dist/carify-$v-offline.zip" HEAD carify carify.ps1 install.ps1 install.sh README.md LICENSE CHANGELOG.md
+          python -m zipfile -l "dist/carify-$v-offline.zip"
+          ls -l dist
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: offline-downloads
+          path: dist/*.zip
+          if-no-files-found: error
+
+  dev-kit:
+    name: dev kit, offline
+    needs: build
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      VERSION: ${{ needs.build.outputs.version }}
+    steps:
+      # No checkout: everything below runs from the unzipped kit.
+      - uses: actions/download-artifact@v4
+        with:
+          name: offline-downloads
+          path: ${{ runner.temp }}/downloads
+      - name: Unzip the kit into a fresh folder, marked as downloaded
+        run: |
+          $dest = Join-Path $env:RUNNER_TEMP 'unzipped'
+          Expand-Archive -LiteralPath "$env:RUNNER_TEMP\downloads\carify-$env:VERSION-dev-windows-x64.zip" -DestinationPath $dest
+          $top = @(Get-ChildItem -LiteralPath $dest)
+          if ($top.Count -ne 1 -or $top[0].Name -ne "carify-$env:VERSION-dev") { throw "the zip should hold one folder, carify-$env:VERSION-dev, not: $($top.Name -join ', ')" }
+          $kit = $top[0].FullName
+          # As if a browser downloaded the zip and Explorer unzipped it
+          Get-ChildItem -LiteralPath $kit -Recurse -File | ForEach-Object { Set-Content -LiteralPath $_.FullName -Stream Zone.Identifier -Value "[ZoneTransfer]`r`nZoneId=3" }
+          Add-Content -LiteralPath $env:GITHUB_ENV -Value "KIT=$kit"
+          # The toolchain versions to install, from the kit's own tools\versions.env
+          Get-Content -LiteralPath "$kit\tools\versions.env" | Where-Object { $_ -match '^[A-Z0-9_]+=' } | ForEach-Object { Add-Content -LiteralPath $env:GITHUB_ENV -Value $_.Trim() }
+          Get-ChildItem -LiteralPath "$kit\offline" -Recurse -File | Where-Object FullName -notlike '*\PSScriptAnalyzer\*' | ForEach-Object FullName
+
+      # The toolchains, which the kit names but doesn't carry, installed while there is a network
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: ffmpeg
+        timeout-minutes: 10
+        run: choco install ffmpeg --version $env:FFMPEG_CHOCO_VERSION -y --no-progress
+      - name: ShellCheck
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP 'shellcheck.zip'
+          Invoke-WebRequest -UseBasicParsing -OutFile $zip -Uri "https://github.com/koalaman/shellcheck/releases/download/v$env:SHELLCHECK_VERSION/shellcheck-v$env:SHELLCHECK_VERSION.zip"
+          $dir = Join-Path $env:RUNNER_TEMP 'shellcheck'
+          Expand-Archive -LiteralPath $zip -DestinationPath $dir
+          Add-Content -LiteralPath $env:GITHUB_PATH -Value $dir
+      - name: The toolchains match the kit's README
+        working-directory: ${{ env.KIT }}
+        run: |
+          # The kit names the PowerShell 7 and Git for Windows of the runner that built it
+          $readme = Get-Content -Raw -LiteralPath offline\README.md
+          $pwsh = "$($PSVersionTable.PSVersion)"
+          $git = (git --version) -replace '^git version ', ''
+          if ($readme -notmatch "\| PowerShell 7 \| $([regex]::Escape($pwsh)) \|") { Write-Host "::warning::this runner has PowerShell $pwsh, not the version offline\README.md names" }
+          $g = if ($git -match '(\d+\.\d+\.\d+)\.windows\.(\d+)') { if ($Matches[2] -eq '1') { $Matches[1] } else { "$($Matches[1]).$($Matches[2])" } } else { $git }
+          if ($readme -notmatch "\| Git for Windows \| $([regex]::Escape($g)) \|") { Write-Host "::warning::this runner has Git $git, not the version offline\README.md names" }
+          "PowerShell $pwsh, Git $git"
+
+      - name: Cut off the internet and the package registries
+        run: |
+          $dead = 'http://127.0.0.1:9'
+          $fresh = Join-Path $env:RUNNER_TEMP 'fresh-caches'
+          $vars = [ordered]@{
+            HTTP_PROXY = $dead; HTTPS_PROXY = $dead; ALL_PROXY = $dead; NO_PROXY = 'localhost,127.0.0.1'
+            PIP_INDEX_URL = "$dead/simple"; PIP_NO_INDEX = '1'; PIP_CONFIG_FILE = 'NUL'; PIP_CACHE_DIR = "$fresh\pip"
+            npm_config_registry = "$dead/"; npm_config_cache = "$fresh\npm"; NUGET_PACKAGES = "$fresh\nuget"
+          }
+          foreach ($k in $vars.Keys) { Add-Content -LiteralPath $env:GITHUB_ENV -Value "$k=$($vars[$k])" }
+          'pip', 'npm', 'nuget' | ForEach-Object { New-Item -ItemType Directory -Force -Path (Join-Path $fresh $_) | Out-Null }
+          # PSGallery, for PowerShellGet in both PowerShells and for PSResourceGet
+          Unregister-PSRepository -Name PSGallery -ErrorAction SilentlyContinue
+          if (Get-Command Unregister-PSResourceRepository -ErrorAction SilentlyContinue) { Unregister-PSResourceRepository -Name PSGallery -ErrorAction SilentlyContinue }
+          powershell -NoProfile -NonInteractive -Command 'try { Unregister-PSRepository -Name PSGallery -ErrorAction Stop } catch { }'
+          exit 0
+      - name: Nothing reaches the network
+        run: |
+          $leaks = @()
+          try { Invoke-WebRequest -UseBasicParsing -TimeoutSec 20 -Uri https://www.powershellgallery.com/api/v2/ | Out-Null; $leaks += 'Invoke-WebRequest' } catch { "Invoke-WebRequest: $($_.Exception.Message)" }
+          if (Get-PSRepository -Name PSGallery -ErrorAction SilentlyContinue) { $leaks += 'PSGallery is registered in PowerShell 7' }
+          if ((powershell -NoProfile -NonInteractive -Command '[bool](Get-PSRepository -Name PSGallery -ErrorAction SilentlyContinue)') -match 'True') { $leaks += 'PSGallery is registered in Windows PowerShell' }
+          python -m pip download --no-deps --dest "$env:RUNNER_TEMP\pip-probe" fonttools==4.66.1
+          if ($LASTEXITCODE -eq 0) { $leaks += 'pip download' }
+          curl.exe -sS --max-time 20 -o NUL https://pypi.org/simple/
+          if ($LASTEXITCODE -eq 0) { $leaks += 'curl' }
+          if ($leaks) { throw "still reaches the network: $($leaks -join ', ')" }
+          'cut off'
+          exit 0
+
+      - name: offline\setup.ps1 in Windows PowerShell 5.1
+        working-directory: ${{ env.KIT }}
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File offline\setup.ps1
+      - name: offline\setup.ps1 in PowerShell 7
+        working-directory: ${{ env.KIT }}
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File offline\setup.ps1
+      - name: Tests, as setup.ps1 prints them
+        working-directory: ${{ env.KIT }}
+        run: |
+          $env:Path = "$env:KIT\.venv\Scripts;" + $env:Path
+          & 'C:\Program Files\Git\bin\bash.exe' tests/run.sh pwsh
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & 'C:\Program Files\Git\bin\bash.exe' tests/run.sh powershell
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Lint, as setup.ps1 prints it
+        working-directory: ${{ env.KIT }}
+        run: |
+          shellcheck --version
+          shellcheck carify install.sh tests/run.sh
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          Import-Module "$env:KIT\offline\powershell\PSScriptAnalyzer\$env:PSSCRIPTANALYZER_VERSION\PSScriptAnalyzer.psd1"
+          # The runner has PSScriptAnalyzer versions of its own: this has to be the kit's, at the pinned version
+          $m = @(Get-Module PSScriptAnalyzer)
+          if ($m.Count -ne 1 -or $m[0].Version -ne [version]$env:PSSCRIPTANALYZER_VERSION -or -not $m[0].ModuleBase.StartsWith($env:KIT)) {
+            throw "loaded PSScriptAnalyzer $($m.Version) from $($m.ModuleBase), not $env:PSSCRIPTANALYZER_VERSION from the kit"
+          }
+          "PSScriptAnalyzer $($m[0].Version) from $($m[0].ModuleBase)"
+          $found = 'carify.ps1', 'install.ps1' | ForEach-Object { Invoke-ScriptAnalyzer -Path $_ -Severity Warning,Error -ExcludeRule PSAvoidUsingWriteHost }
+          $found | Format-Table -AutoSize
+          if ($found) { exit 1 }
+      - name: Art check, as setup.ps1 prints it
+        working-directory: ${{ env.KIT }}
+        run: |
+          $py = "$env:KIT\.venv\Scripts\python.exe"
+          $v = & $py -c "import sys;print('.'.join(map(str,sys.version_info[:3])))"
+          if ($v -ne $env:PYTHON_VERSION) { throw ".venv has Python $v, not $env:PYTHON_VERSION" }
+          & $py -m pip list --disable-pip-version-check
+          $files = 'docs\assets\cluster-dark.svg', 'docs\assets\cluster-light.svg', 'docs\runs.js', 'docs\index.html', 'README.md'
+          $before = $files | ForEach-Object { (Get-FileHash -LiteralPath $_).Hash }
+          & $py docs/art/make-art.py
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $after = $files | ForEach-Object { (Get-FileHash -LiteralPath $_).Hash }
+          $changed = @(for ($i = 0; $i -lt $files.Count; $i++) { if ($before[$i] -ne $after[$i]) { $files[$i] } })
+          if ($changed) { throw "make-art.py changed $($changed -join ', ')" }
+
+  run-offline:
+    name: offline zip (${{ matrix.os }})
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      VERSION: ${{ needs.build.outputs.version }}
+    steps:
+      # No checkout: everything below runs from the unzipped download.
+      - uses: actions/download-artifact@v4
+        with:
+          name: offline-downloads
+          path: ${{ runner.temp }}/downloads
+      - name: Unzip into a fresh folder, marked as downloaded
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $dest = Join-Path $env:RUNNER_TEMP 'unzipped'
+          Expand-Archive -LiteralPath "$env:RUNNER_TEMP\downloads\carify-$env:VERSION-offline.zip" -DestinationPath $dest
+          $dir = Join-Path $dest "carify-$env:VERSION"
+          $files = @(Get-ChildItem -LiteralPath $dest -Recurse -File)
+          $want = 'CHANGELOG.md', 'LICENSE', 'README.md', 'carify', 'carify.ps1', 'install.ps1', 'install.sh'
+          if (Compare-Object ($files.FullName | Sort-Object) ($want | ForEach-Object { Join-Path $dir $_ } | Sort-Object)) { throw "carify-$env:VERSION-offline.zip holds: $($files.FullName -join ', ')" }
+          $files | ForEach-Object { Set-Content -LiteralPath $_.FullName -Stream Zone.Identifier -Value "[ZoneTransfer]`r`nZoneId=3" }
+          Add-Content -LiteralPath $env:GITHUB_ENV -Value "UNZIPPED=$dir"
+      - name: Unzip into a fresh folder
+        if: runner.os == 'Linux'
+        run: |
+          mkdir "$RUNNER_TEMP/unzipped"
+          unzip -q "$RUNNER_TEMP/downloads/carify-$VERSION-offline.zip" -d "$RUNNER_TEMP/unzipped"
+          dir="$RUNNER_TEMP/unzipped/carify-$VERSION"
+          ls -l "$dir"
+          test "$(cd "$RUNNER_TEMP/unzipped" && find . -type f | sort | tr '\n' ' ')" = \
+            "./carify-$VERSION/CHANGELOG.md ./carify-$VERSION/LICENSE ./carify-$VERSION/README.md ./carify-$VERSION/carify ./carify-$VERSION/carify.ps1 ./carify-$VERSION/install.ps1 ./carify-$VERSION/install.sh "
+          test -x "$dir/carify" && test -x "$dir/install.sh"
+          echo "UNZIPPED=$dir" >> "$GITHUB_ENV"
+
+      # ffmpeg, which the zip names but doesn't carry, installed while there is a network
+      - name: ffmpeg
+        if: runner.os == 'Windows'
+        timeout-minutes: 10
+        run: choco install ffmpeg --version ${{ needs.build.outputs.ffmpeg }} -y --no-progress
+      - name: ffmpeg
+        if: runner.os == 'Linux'
+        # Skip the man-db index rebuild, which can stall apt for 40+ minutes.
+        run: |
+          sudo rm -f /var/lib/man-db/auto-update
+          sudo apt-get update -q
+          sudo apt-get install -yq --no-install-recommends ffmpeg
+      - name: A clip carify has to convert (H.264 with 5.1 AC3)
+        shell: bash
+        run: |
+          ffmpeg -hide_banner -loglevel error -nostdin -f lavfi -i testsrc2=size=640x360:rate=24:duration=2 \
+            -f lavfi -i sine=frequency=440:duration=2:sample_rate=48000 \
+            -map 0:v -map 1:a -c:v libx264 -pix_fmt yuv420p -c:a ac3 -ac 6 "$RUNNER_TEMP/clip.mkv"
+
+      - name: Cut off the internet and the package registries
+        shell: bash
+        run: |
+          dead=http://127.0.0.1:9
+          fresh="$RUNNER_TEMP/fresh-caches"
+          mkdir -p "$fresh/pip" "$fresh/npm" "$fresh/nuget"
+          {
+            for k in HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy; do echo "$k=$dead"; done
+            echo "NO_PROXY=localhost,127.0.0.1"; echo "no_proxy=localhost,127.0.0.1"
+            echo "PIP_INDEX_URL=$dead/simple"; echo "PIP_NO_INDEX=1"; echo "PIP_CACHE_DIR=$fresh/pip"
+            echo "npm_config_registry=$dead/"; echo "npm_config_cache=$fresh/npm"; echo "NUGET_PACKAGES=$fresh/nuget"
+          } >> "$GITHUB_ENV"
+          pwsh -NoProfile -Command 'Unregister-PSRepository -Name PSGallery -ErrorAction SilentlyContinue; exit 0'
+      - name: Nothing reaches the network
+        shell: bash
+        run: |
+          if curl -sS --max-time 20 -o /dev/null https://raw.githubusercontent.com/Real-Fruit-Snacks/carify/main/carify; then
+            echo "::error::curl still reaches GitHub"; exit 1
+          fi
+          pwsh -NoProfile -Command 'try { Invoke-WebRequest -UseBasicParsing -TimeoutSec 20 -Uri https://raw.githubusercontent.com/Real-Fruit-Snacks/carify/main/carify.ps1 | Out-Null; exit 1 } catch { $_.Exception.Message; exit 0 }'
+
+      - name: install.ps1 in Windows PowerShell 5.1, as the README says
+        if: runner.os == 'Windows'
+        working-directory: ${{ env.UNZIPPED }}
+        shell: pwsh
+        run: |
+          # Windows PowerShell ignores the proxy variables, so this run shows it used the copy
+          # beside it by what it says and by what it installed.
+          $env:CARIFY_BIN = Join-Path $env:RUNNER_TEMP 'bin-ps51'
+          $out = powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
+          $out
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          if (-not ($out -match 'using the carify.ps1 next to install.ps1')) { throw 'install.ps1 did not use the carify.ps1 beside it' }
+          $installed = Join-Path $env:CARIFY_BIN 'carify.ps1'
+          if ((Get-FileHash $installed).Hash -ne (Get-FileHash .\carify.ps1).Hash) { throw 'the installed carify.ps1 is not the one in the zip' }
+          # Under RemoteSigned the zip's own copy is refused, because it has the Mark of the Web;
+          # the installed copy has to run.
+          powershell -NoProfile -ExecutionPolicy RemoteSigned -File .\carify.ps1 -Version
+          if ($LASTEXITCODE -eq 0) { throw 'the marked carify.ps1 ran under RemoteSigned, so this check proves nothing' }
+          $v = powershell -NoProfile -ExecutionPolicy RemoteSigned -File $installed -Version
+          if ($v -ne "carify $env:VERSION") { throw "carify.ps1 -Version said '$v'" }
+          Copy-Item "$env:RUNNER_TEMP\clip.mkv" "$env:RUNNER_TEMP\clip-ps51.mkv"
+          powershell -NoProfile -ExecutionPolicy RemoteSigned -File $installed -NoUsb "$env:RUNNER_TEMP\clip-ps51.mkv"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $a = ffprobe -v error -select_streams a:0 -show_entries stream=codec_name,channels -of csv=p=0 "$env:RUNNER_TEMP\clip-ps51-car.mp4"
+          if ($a -ne 'aac,2') { throw "the converted clip's audio is '$a', not aac stereo" }
+          "carify.ps1 $v converted the clip: audio $a"
+      - name: install.ps1 in PowerShell 7
+        if: runner.os == 'Windows'
+        working-directory: ${{ env.UNZIPPED }}
+        shell: pwsh
+        run: |
+          $env:CARIFY_BIN = Join-Path $env:RUNNER_TEMP 'bin-pwsh'
+          pwsh -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $installed = Join-Path $env:CARIFY_BIN 'carify.ps1'
+          if ((Get-FileHash $installed).Hash -ne (Get-FileHash .\carify.ps1).Hash) { throw 'the installed carify.ps1 is not the one in the zip' }
+          Copy-Item "$env:RUNNER_TEMP\clip.mkv" "$env:RUNNER_TEMP\clip-pwsh.mkv"
+          pwsh -NoProfile -ExecutionPolicy RemoteSigned -File $installed -NoUsb "$env:RUNNER_TEMP\clip-pwsh.mkv"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $a = ffprobe -v error -select_streams a:0 -show_entries stream=codec_name,channels -of csv=p=0 "$env:RUNNER_TEMP\clip-pwsh-car.mp4"
+          if ($a -ne 'aac,2') { throw "the converted clip's audio is '$a', not aac stereo" }
+          # Piped to iex, install.ps1 downloads as before, so with no network it fails
+          $env:CARIFY_BIN = Join-Path $env:RUNNER_TEMP 'bin-iex'
+          pwsh -NoProfile -Command 'Get-Content -Raw .\install.ps1 | Invoke-Expression'
+          if ($LASTEXITCODE -eq 0 -or (Test-Path (Join-Path $env:CARIFY_BIN 'carify.ps1'))) { throw 'install.ps1 piped to iex installed something with no network' }
+          'piped to iex, it tried to download and failed, as it should'
+          exit 0
+      - name: install.sh in Git Bash
+        if: runner.os == 'Windows'
+        working-directory: ${{ env.UNZIPPED }}
+        shell: bash
+        run: |
+          bin="$(cygpath -u "$RUNNER_TEMP")/bin-sh"
+          CARIFY_BIN="$bin" sh ./install.sh | tee "$RUNNER_TEMP/install-sh.log"
+          grep -q 'using the carify next to install.sh' "$RUNNER_TEMP/install-sh.log"
+          cmp carify "$bin/carify"
+          test "$("$bin/carify" --version)" = "carify $VERSION"
+
+      - name: install.sh, as the README says
+        if: runner.os == 'Linux'
+        working-directory: ${{ env.UNZIPPED }}
+        run: |
+          bin="$RUNNER_TEMP/bin-sh"
+          CARIFY_BIN="$bin" sh ./install.sh | tee "$RUNNER_TEMP/install-sh.log"
+          grep -q 'using the carify next to install.sh' "$RUNNER_TEMP/install-sh.log"
+          cmp carify "$bin/carify"
+          test "$("$bin/carify" --version)" = "carify $VERSION"
+          cp "$RUNNER_TEMP/clip.mkv" "$RUNNER_TEMP/clip-sh.mkv"
+          "$bin/carify" --no-usb "$RUNNER_TEMP/clip-sh.mkv"
+          test "$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name,channels -of csv=p=0 "$RUNNER_TEMP/clip-sh-car.mp4")" = "aac,2"
+          # Piped to sh, install.sh downloads as before, so with no network it fails
+          if CARIFY_BIN="$RUNNER_TEMP/bin-pipe" sh < install.sh; then echo "::error::install.sh piped to sh succeeded with no network"; exit 1; fi
+          test ! -e "$RUNNER_TEMP/bin-pipe/carify"
+      - name: install.ps1 in PowerShell 7
+        if: runner.os == 'Linux'
+        working-directory: ${{ env.UNZIPPED }}
+        run: |
+          bin="$RUNNER_TEMP/bin-pwsh"
+          CARIFY_BIN="$bin" pwsh -NoProfile -File ./install.ps1
+          cmp carify.ps1 "$bin/carify.ps1"
+          test "$(pwsh -NoProfile -File "$bin/carify.ps1" -Version)" = "carify $VERSION"
+          cp "$RUNNER_TEMP/clip.mkv" "$RUNNER_TEMP/clip-pwsh.mkv"
+          pwsh -NoProfile -File "$bin/carify.ps1" -NoUsb "$RUNNER_TEMP/clip-pwsh.mkv"
+          test "$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name,channels -of csv=p=0 "$RUNNER_TEMP/clip-pwsh-car.mp4")" = "aac,2"

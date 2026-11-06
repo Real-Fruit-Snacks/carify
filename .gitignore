@@ -15,3 +15,6 @@ desktop.ini
 *.swp
 .vscode/
 .idea/
+
+# Built by tools/build-dev-kit.ps1
+/dist/

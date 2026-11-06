@@ -1,0 +1,40 @@
+# carify {{VERSION}} dev kit for Windows x64
+
+Everything you need to work on carify on a Windows x64 machine with no network, apart from the toolchains below. This folder is the carify repo at commit `{{COMMIT}}` (`git archive`, so there is no `.git`), plus `offline\`:
+
+| In `offline\` | What it is |
+|---|---|
+| `setup.ps1` | Checks the toolchains and says what's missing, sets up from the kit, then prints the commands for the tests, the lint and the art check. Needs no network. |
+| `powershell\PSScriptAnalyzer\{{PSSCRIPTANALYZER_VERSION}}\` | PSScriptAnalyzer {{PSSCRIPTANALYZER_VERSION}}, the PowerShell lint (`Save-Module` output) |
+| `python\` | Wheels for CPython {{PYTHON_MINOR}} on win_amd64: {{WHEELS}}. `docs/art/make-art.py` needs them; `docs/art/requirements.txt` pins them. |
+| `licences\` | The licence and notices of each package above |
+
+## Toolchains
+
+These are not in the kit. Install them first; each download is a full installer or zip that needs no network once you have it. The versions are the ones CI built and tested this kit with.
+
+| Toolchain | Version | Download | Used for |
+|---|---|---|---|
+| Windows PowerShell | 5.1 | Part of Windows 10 and 11 | `tests/run.sh powershell` |
+| PowerShell 7 | {{PWSH_VERSION}} | [{{PWSH_FILE}}]({{PWSH_URL}}) | `tests/run.sh pwsh` and the PowerShell lint (PSScriptAnalyzer needs {{PWSH_MIN}} or later) |
+| Git for Windows | {{GIT_VERSION}} | [{{GIT_FILE}}]({{GIT_URL}}) | Git Bash, which runs `tests/run.sh` |
+| Python | {{PYTHON_VERSION}} | [{{PYTHON_FILE}}]({{PYTHON_URL}}) | `docs/art/make-art.py` and one check in `tests/run.sh`; any {{PYTHON_MINOR}}.x works with the wheels |
+| ffmpeg and ffprobe, with libx264, libx265 and ac3 | {{FFMPEG_VERSION}} | [{{FFMPEG_FILE}}]({{FFMPEG_URL}}) from gyan.dev (CI installs it with Chocolatey), or a `win64-gpl` build from [BtbN](https://github.com/BtbN/FFmpeg-Builds/releases). [ffmpeg.org](https://ffmpeg.org/download.html#build-windows) links to both. | The tests, and carify itself |
+| ShellCheck | {{SHELLCHECK_VERSION}} | [{{SHELLCHECK_FILE}}]({{SHELLCHECK_URL}}) | The shell lint |
+
+ffmpeg and ShellCheck come as zips: unzip them and put the folders holding `ffmpeg.exe` and `ffprobe.exe` (ffmpeg's `bin`) and `shellcheck.exe` on your PATH. Both are GPL builds, which is why the kit names them instead of carrying them.
+
+## Steps
+
+1. Unzip `carify-{{VERSION}}-dev-windows-x64.zip` and keep the folder as it is.
+2. Install the toolchains above, then open a new terminal so it sees them.
+3. In the kit folder, run `powershell -ExecutionPolicy Bypass -File offline\setup.ps1` (or the same with `pwsh`). It clears the Mark of the Web that Windows puts on files from a download, checks each toolchain, makes `.venv` with `pip install --no-index --find-links offline\python`, and loads PSScriptAnalyzer from `offline\powershell` by its exact version. If something is missing it says what, and exits 1.
+4. Run the commands it prints: the tests (`tests/run.sh pwsh` and `tests/run.sh powershell`, in Git Bash), the lint (ShellCheck and PSScriptAnalyzer) and the art check (`docs/art/make-art.py`, which changes no file unless you changed what it draws from).
+
+## Not in the kit
+
+- The toolchains above.
+- Recording the runs the README and the project page replay again (`docs/art/record.py`). It needs Linux, with a folder named MOVIES where carify looks for the stick; CI records them on ubuntu-24.04. `make-art.py` redraws everything from the committed `docs/art/runs.json`, offline.
+- Rendering the social card (`docs/card.html` to `docs/assets/social.png`), which needs a headless Chromium.
+
+`tools/build-dev-kit.ps1` builds this kit. The versions it bundles and CI installs are pinned in `tools/versions.env` and `docs/art/requirements.txt`, and the `offline` workflow (`.github/workflows/offline.yml`) runs the steps above from the unzipped kit with the network cut off before each release.

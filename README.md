@@ -97,7 +97,7 @@ The installers also read `CARIFY_BIN` (install folder) and `CARIFY_REF` (a tag s
 
 ## Tested on
 
-- Ubuntu 24.04 · bash 5.2 · ffmpeg 6.1.1 (all 40 checks in `tests/run.sh`)
+- Ubuntu 24.04 · bash 5.2 · ffmpeg 6.1.1 (all 42 checks in `tests/run.sh`)
 - CI on every push: Ubuntu (bash, PowerShell 7), macOS (bash 5 and the system `/bin/bash` 3.2), Windows (PowerShell 7 and Windows PowerShell 5.1)
 - *Not* tested: a list of head units by model year. The limits above are the common denominator that has worked across Uconnect generations, not a published spec. If a file played or failed on your car, an issue saying which model year and head unit is the data this project is short of.
 

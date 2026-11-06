@@ -10,7 +10,7 @@ root=$(cd -- "$(dirname -- "$0")/.." && pwd)
 work=$(mktemp -d "${TMPDIR:-/tmp}/carify-test.XXXXXX")
 trap 'rm -rf -- "$work"' EXIT
 export NO_COLOR=1
-unset CARIFY_USB_DIR
+unset CARIFY_USB_DIR CARIFY_URL CARIFY_REF
 
 pass=0 fail=0
 check() {  # check <name> <condition...>
@@ -41,12 +41,22 @@ run() {
 }
 
 not() { ! "$@"; }
+# Run a command with every proxy set to a closed local port, so any download fails at once.
+no_network() {
+    local dead=http://127.0.0.1:9
+    env http_proxy=$dead https_proxy=$dead all_proxy=$dead HTTP_PROXY=$dead HTTPS_PROXY=$dead ALL_PROXY=$dead \
+        no_proxy= NO_PROXY= "$@"
+}
 # stream field from the first video/audio stream of a file
 # (tr -d '\r': ffprobe on Windows ends lines with CRLF)
 f() { ffprobe -v error -select_streams "$2" -show_entries "stream=$3" -of csv=p=0 "file:$1" | tr -d '\r' | head -n1; }
 streams() { ffprobe -v error -show_entries stream=codec_type -of csv=p=0 "file:$1" | tr -d '\r' | tr '\n' ' ' | sed 's/ $//'; }
 # true if the moov atom comes before mdat (faststart)
-py=$(command -v python3 || command -v python)
+# (the first Python that runs: on Windows, python3 can be a stub that only points at the Store)
+py=
+for p in python3 python; do
+    if command -v "$p" >/dev/null 2>&1 && "$p" -c '' >/dev/null 2>&1; then py=$(command -v "$p"); break; fi
+done
 moov_first() { "$py" - "$1" <<'PY'
 import struct, sys
 with open(sys.argv[1], "rb") as fh:
@@ -94,8 +104,10 @@ ffmpeg -hide_banner -loglevel error -nostdin -y -f lavfi -i "sine=duration=2" -i
     -map 0:a -map 1:v -c:a aac -c:v png -disposition:v:0 attached_pic song.m4a
 mkdir -p "dir.v1" "sub dir" usb
 cp ok.mp4 "dir.v1/movie"
+windows=
+case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) windows=1 ;; esac
 odd="sub dir/-dash: name"            # colons are not allowed in Windows names
-case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) odd="sub dir/-dash name" ;; esac
+[[ -n "$windows" ]] && odd="sub dir/-dash name"
 cp ok.mp4 "$odd.mkv"
 head -c 50000 /dev/urandom > broken.mkv
 
@@ -178,6 +190,27 @@ if [[ "$target" == bash ]]; then
     check "install.sh: installs a runnable carify"  test "$("$work/bin/carify" --version)" = "$(run --version)"
     CARIFY_BIN="$work/bin2" CARIFY_URL="file://$root/README.md" sh "$root/install.sh" >/dev/null 2>&1
     check "install.sh: rejects a non-carify download" test ! -e "$work/bin2/carify"
+    # Unzipped from carify-<version>-offline.zip: run as a file, install.sh installs the carify
+    # beside it (marked 9.9.9 here). Piped to sh it downloads, never the copy in the folder.
+    mkdir -p "$work/unzipped"
+    sed 's/^CARIFY_VERSION=.*/CARIFY_VERSION="9.9.9"/' "$root/carify" > "$work/unzipped/carify"
+    cp "$root/install.sh" "$work/unzipped/install.sh"
+    (cd "$work/unzipped" && no_network CARIFY_BIN="$work/bin3" sh ./install.sh) >/dev/null 2>&1
+    check "install.sh: run as a file, installs the carify beside it" test "$("$work/bin3/carify" --version 2>/dev/null)" = "carify 9.9.9"
+    (cd "$work/unzipped" && no_network CARIFY_BIN="$work/bin4" sh < install.sh) >/dev/null 2>&1
+    check "install.sh: piped to sh, ignores the carify in the folder" test "$("$work/bin4/carify" --version 2>/dev/null)" != "carify 9.9.9"
+fi
+
+# install.ps1 the same way. On Windows it also adds its folder to the user PATH in the registry,
+# so there it is left to the offline workflow, which runs it on a throwaway runner.
+if [[ "$target" != bash && -z "$windows" ]]; then
+    mkdir -p "$work/unzipped-ps"
+    sed "s/^\(.CarifyVersion = '\)[^']*'/\19.9.9'/" "$root/carify.ps1" > "$work/unzipped-ps/carify.ps1"
+    cp "$root/install.ps1" "$work/unzipped-ps/install.ps1"
+    (cd "$work/unzipped-ps" && no_network CARIFY_BIN="$work/psbin" "$target" -NoProfile -File ./install.ps1) >/dev/null 2>&1
+    check "install.ps1: run as a file, installs the carify.ps1 beside it" grep -qF "= '9.9.9'" "$work/psbin/carify.ps1"
+    (cd "$work/unzipped-ps" && no_network CARIFY_BIN="$work/psbin2" "$target" -NoProfile -Command 'Get-Content -Raw ./install.ps1 | Invoke-Expression') >/dev/null 2>&1
+    check "install.ps1: piped to iex, ignores the carify.ps1 in the folder" not grep -qsF "= '9.9.9'" "$work/psbin2/carify.ps1"
 fi
 
 echo "$pass passed, $fail failed"
