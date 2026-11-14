@@ -422,5 +422,34 @@ if [[ "$target" != bash && -z "$windows" ]]; then
     check "install.ps1: piped to iex, ignores the carify.ps1 in the folder" not grep -qsF "= '9.9.9'" "$work/psbin2/carify.ps1"
 fi
 
+# install.ps1 decides on the execution policy saved for the user or the machine, not this process's:
+# run as "powershell -ExecutionPolicy Bypass -File .\install.ps1", Get-ExecutionPolicy says Bypass.
+# Only its Get-SavedExecutionPolicy function runs here, against made-up scopes, so nothing is changed.
+if [[ "$target" != bash ]]; then
+    cat > saved-policy.ps1 <<'PS'
+param([string]$Install, [string]$Scopes)
+$fake = @{}
+foreach ($pair in $Scopes -split ',') { $k, $v = $pair -split '=', 2; if ($k) { $fake[$k] = $v } }
+function Get-ExecutionPolicy([string]$Scope) { if ($fake.ContainsKey($Scope)) { $fake[$Scope] } else { 'Undefined' } }
+$ast = [Management.Automation.Language.Parser]::ParseFile($Install, [ref]$null, [ref]$null)
+$fn = $ast.Find({ param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and
+    $n.Name -eq 'Get-SavedExecutionPolicy' }, $true)
+if (-not $fn) { 'install.ps1 has no Get-SavedExecutionPolicy'; exit 1 }
+. ([scriptblock]::Create($fn.Extent.Text))
+Get-SavedExecutionPolicy
+PS
+    saved_policy() {
+        "$target" -NoProfile -ExecutionPolicy Bypass -File saved-policy.ps1 "$root/install.ps1" "$1" 2>&1 | tr -d '\r'
+    }
+    check "install.ps1: under -ExecutionPolicy Bypass, the saved policy" \
+        test "$(saved_policy Process=Bypass,LocalMachine=Restricted)" = Restricted
+    check "install.ps1: the user's policy before the machine's" \
+        test "$(saved_policy Process=Bypass,CurrentUser=RemoteSigned,LocalMachine=Restricted)" = RemoteSigned
+    check "install.ps1: Group Policy before both" \
+        test "$(saved_policy MachinePolicy=AllSigned,CurrentUser=RemoteSigned)" = AllSigned
+    check "install.ps1: nothing saved is Undefined"   test "$(saved_policy Process=Bypass)" = Undefined
+    check "install.ps1: decides on the saved policy"  grep -qF 'policy = Get-SavedExecutionPolicy' "$root/install.ps1"
+fi
+
 echo "$pass passed, $fail failed"
 [[ $fail -eq 0 ]]
