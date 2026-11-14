@@ -79,10 +79,10 @@ empty_dir() { [[ -d "$1" && -z "$(ls -A "$1")" ]]; }
 # the ffmpeg command, one argument per line
 cmd_head() { lines ffmpeg -hide_banner -nostdin -loglevel warning -stats -y -i "file:$1" -map 0:V:0; }
 cmd_tail() { lines -sn -dn -map_metadata 0 -movflags +faststart -f mp4 "file:$1"; }
-scale720="scale=w='min(1280,iw)':h='min(720,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2"
-scale1080="scale=w='min(1920,iw)':h='min(1080,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2"
+scale720="scale=w='min(1280,iw)':h='min(720,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2:out_range=tv"
+scale1080="scale=w='min(1920,iw)':h='min(1080,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2:out_range=tv"
 reencode() {
-    lines -c:v libx264 -preset veryfast -crf 20 -profile:v high -level:v 4.1 -pix_fmt yuv420p -vf "$1" \
+    lines -c:v libx264 -preset veryfast -crf 20 -profile:v high -level:v 4.1 -pix_fmt yuv420p -color_range tv -vf "$1" \
         -map 0:a:0 -c:a aac -ac 2 -b:a 160k
 }
 want_ok=$(cmd_head ok.mp4; lines -c:v copy -map 0:a:0 -c:a copy; cmd_tail .ok-car.mp4.part)

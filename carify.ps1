@@ -154,9 +154,11 @@ $goodProfiles = 'Constrained Baseline', 'Baseline', 'Main', 'High'
 if ($vcodec -ne 'h264' -or $vpix -ne 'yuv420p' -or $vprof -notin $goodProfiles -or
     $vlevel -gt 41 -or $vwidth -gt $MaxWidth -or $vheight -gt $MaxHeight) {
     Write-Status 'video' "re-encode to H.264 High 8-bit, fits ${MaxWidth}x${MaxHeight} (slow)"
+    # Limited range: a full-range (yuvj420p) source would otherwise come out full range again
+    # and be re-encoded on every run.
     $vopts = @('-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-profile:v', 'high',
-        '-level:v', '4.1', '-pix_fmt', 'yuv420p', '-vf',
-        "scale=w='min($MaxWidth,iw)':h='min($MaxHeight,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2")
+        '-level:v', '4.1', '-pix_fmt', 'yuv420p', '-color_range', 'tv', '-vf',
+        "scale=w='min($MaxWidth,iw)':h='min($MaxHeight,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2:out_range=tv")
 }
 else {
     Write-Status 'video' 'copy' 'ok'

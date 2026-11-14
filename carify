@@ -152,8 +152,10 @@ if [[ "$vcodec" != h264 || "$vpix" != yuv420p || "$vlevel" -gt 41 \
       || "$vwidth" -gt "$max_w" || "$vheight" -gt "$max_h" ]] \
    || ! [[ "$vprof" =~ ^(Constrained\ Baseline|Baseline|Main|High)$ ]]; then
     say video "re-encode to H.264 High 8-bit, fits ${max_w}x${max_h} (slow)"
-    vopts=(-c:v libx264 -preset veryfast -crf 20 -profile:v high -level:v 4.1 -pix_fmt yuv420p
-           -vf "scale=w='min($max_w,iw)':h='min($max_h,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2")
+    # Limited range: a full-range (yuvj420p) source would otherwise come out
+    # full range again and be re-encoded on every run.
+    vopts=(-c:v libx264 -preset veryfast -crf 20 -profile:v high -level:v 4.1 -pix_fmt yuv420p -color_range tv
+           -vf "scale=w='min($max_w,iw)':h='min($max_h,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2:out_range=tv")
 else
     ok video "copy"
 fi
