@@ -41,6 +41,10 @@ run() {
 }
 
 not() { ! "$@"; }
+# A file:// URL curl can open: on Windows it wants the drive letter, not Git Bash's /c/...
+file_url() {
+    if [[ -n "$windows" ]]; then printf 'file:///%s' "$(cygpath -m "$1")"; else printf 'file://%s' "$1"; fi
+}
 # Run a command with every proxy set to a closed local port, so any download fails at once.
 no_network() {
     local dead=http://127.0.0.1:9
@@ -52,12 +56,15 @@ no_network() {
 f() { ffprobe -v error -select_streams "$2" -show_entries "stream=$3" -of csv=p=0 "file:$1" | tr -d '\r' | head -n1; }
 streams() { ffprobe -v error -show_entries stream=codec_type -of csv=p=0 "file:$1" | tr -d '\r' | tr '\n' ' ' | sed 's/ $//'; }
 # true if the moov atom comes before mdat (faststart)
-# (the first Python that runs: on Windows, python3 can be a stub that only points at the Store)
-py=
-for p in python3 python; do
-    if command -v "$p" >/dev/null 2>&1 && "$p" -c '' >/dev/null 2>&1; then py=$(command -v "$p"); break; fi
+# (the first Python that runs: on Windows, python3 and python can be stubs that only point at the
+# Store, and the py launcher is the real one)
+py=(false)
+for p in python3 python py; do
+    try=("$p"); [[ "$p" == py ]] && try=(py -3)
+    if command -v "$p" >/dev/null 2>&1 && "${try[@]}" -c '' >/dev/null 2>&1; then py=("${try[@]}"); break; fi
 done
-moov_first() { "$py" - "$1" <<'PY'
+[[ "${py[0]}" != false ]] || echo "no Python 3 found: the faststart check fails" >&2
+moov_first() { "${py[@]}" - "$1" <<'PY'
 import struct, sys
 with open(sys.argv[1], "rb") as fh:
     while True:
@@ -395,9 +402,9 @@ PS
 fi
 
 if [[ "$target" == bash ]]; then
-    CARIFY_BIN="$work/bin" CARIFY_URL="file://$root/carify" sh "$root/install.sh" >/dev/null 2>&1
+    CARIFY_BIN="$work/bin" CARIFY_URL="$(file_url "$root/carify")" sh "$root/install.sh" >/dev/null 2>&1
     check "install.sh: installs a runnable carify"  test "$("$work/bin/carify" --version)" = "$(run --version)"
-    CARIFY_BIN="$work/bin2" CARIFY_URL="file://$root/README.md" sh "$root/install.sh" >/dev/null 2>&1
+    CARIFY_BIN="$work/bin2" CARIFY_URL="$(file_url "$root/README.md")" sh "$root/install.sh" >/dev/null 2>&1
     check "install.sh: rejects a non-carify download" test ! -e "$work/bin2/carify"
     # Unzipped from carify-<version>-offline.zip: run as a file, install.sh installs the carify
     # beside it (marked 9.9.9 here). Piped to sh it downloads, never the copy in the folder.
