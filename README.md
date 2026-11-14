@@ -72,10 +72,11 @@ carify movie.mkv ~/out.mp4        # explicit output path
 carify --force movie.mkv          # overwrite an existing output
 carify --max-height 1080 movie.mkv
 carify --no-usb movie.mkv         # don't copy to the stick
+carify --dry-run movie.mkv        # print the plan and the ffmpeg command, convert nothing
 for f in *.mkv; do carify "$f"; done
 ```
 
-PowerShell takes the same arguments as `-Force`, `-MaxHeight 1080`, `-NoUsb` and `-Version`; a folder is `Get-ChildItem *.mkv | ForEach-Object { carify.ps1 $_.FullName }`. `Get-Help carify.ps1` shows the full help.
+PowerShell takes the same arguments as `-Force`, `-DryRun`, `-MaxHeight 1080`, `-NoUsb` and `-Version`; a folder is `Get-ChildItem *.mkv | ForEach-Object { carify.ps1 $_.FullName }`. `Get-Help carify.ps1` shows the full help.
 
 | Setting | Default | Does |
 |---|---|---|
