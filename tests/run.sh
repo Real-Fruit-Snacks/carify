@@ -327,8 +327,8 @@ check "captured stderr: no colour, even in a colour terminal" not grep -qF $'\e[
 
 if [[ "$target" != bash ]]; then
     syntax=$(cd "$root" && "$target" -NoProfile -ExecutionPolicy Bypass -Command 'Get-Command ./carify.ps1 -Syntax' 2>&1 | tr -d '\r')
-    check "help: the input file is required"     grep -q '^carify\.ps1 \[-In\] <string> ' <<< "$syntax"
-    check "help: -Version is a form of its own"  grep -qx 'carify\.ps1 -Version \[<CommonParameters>\]' <<< "$syntax"
+    check "help: the input file is required"     grep -qE '^(\./)?carify\.ps1 \[-In\] <string> ' <<< "$syntax"
+    check "help: -Version is a form of its own"  grep -qxE '(\./)?carify\.ps1 -Version \[<CommonParameters>\]' <<< "$syntax"
 fi
 
 # Colour on a console. Windows PowerShell only: carify.ps1 runs in a host whose stderr is the
