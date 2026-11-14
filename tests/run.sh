@@ -94,6 +94,14 @@ gen hdr.mkv     -map 0:v -map 1:a -vf setparams=color_primaries=bt2020:color_trc
                 -c:v libx265 -pix_fmt yuv420p10le \
                 -x265-params log-level=error:colorprim=bt2020:transfer=smpte2084:colormatrix=bt2020nc -c:a aac
 gen hi422.mkv   -map 0:v -map 1:a -c:v libx264 -pix_fmt yuv422p -c:a aac -ac 2
+# wider than 1280 but well under 720 high: only the width limit says it must shrink
+SIZE=1920x360 gen wide.mp4 -map 0:v -map 1:a -c:v libx264 -profile:v high -pix_fmt yuv420p -c:a aac -ac 2
+# MPEG-2 Main profile, 8-bit 4:2:0, level 8: only the codec says it needs re-encoding
+gen mpeg2-main.mp4 -map 0:v -map 1:a -c:v mpeg2video -pix_fmt yuv420p -c:a aac -ac 2
+# H.264 whose SPS says level 0 (rewritten by h264_metadata): within the 4.1 limit
+gen h264-level0.mp4 -map 0:v -map 1:a -c:v libx264 -profile:v high -pix_fmt yuv420p \
+                -bsf:v h264_metadata=level=0 -c:a aac -ac 2
+gen ac3-stereo.mp4 -map 0:v -map 1:a -c:v libx264 -profile:v high -pix_fmt yuv420p -c:a ac3 -ac 2
 # Cover art: an MKV with an image attachment, and an MP3 whose only "video" is the cover
 ffmpeg -hide_banner -loglevel error -nostdin -y -f lavfi -i "color=c=orange:size=300x300:duration=1" -frames:v 1 cover.png
 ffmpeg -hide_banner -loglevel error -nostdin -y -i ok.mp4 -map 0 -c copy \
@@ -118,6 +126,11 @@ check "compliant file: audio copied"         grep -q 'audio  copy' <<< "$log"
 check "compliant file: default name"         test -f ok-car.mp4
 check "compliant file: faststart"            moov_first ok-car.mp4
 check "compliant file: video stays h264"     test "$(f ok-car.mp4 v:0 codec_name)" = h264
+check "compliant file: probe reports the audio" grep -q 'audio aac' <<< "$log"
+ok_size=$(( $(wc -c < ok-car.mp4) ))
+check "under 1 MiB: size shown in KB"        grep -qF "($(( ok_size / 1024 )) KB)" <<< "$log"
+# Checks that need a stream copied run only where the compliant file was copied.
+copies=; grep -q 'video  copy' <<< "$log" && copies=1
 
 run --no-usb ok.mp4 >/dev/null 2>&1
 check "existing output refused"              test $? -ne 0
@@ -126,6 +139,16 @@ check "--force overwrites"                   test $? -eq 0
 run --no-usb --force ok.mp4 ok.mp4 >/dev/null 2>&1
 check "output == input refused"              test $? -ne 0
 check "input untouched after refusal"        test "$(f ok.mp4 v:0 codec_name)" = h264
+# Windows names ignore case, so CASE.mp4 is the input itself (carify.ps1 only: the bash script compares exactly)
+if [[ "$target" != bash && -n "$windows" ]]; then
+    cp ok.mp4 case.mp4
+    run --no-usb --force case.mp4 CASE.mp4 >/dev/null 2>&1
+    check "output == input in another case refused (Windows)" test $? -ne 0
+fi
+log=$(run --no-usb missing.mp4 2>&1)
+check "missing input: file not found"        grep -q 'file not found' <<< "$log"
+log=$(run --no-usb < /dev/null 2>&1)
+check "no input given: not taken for a missing file" not grep -q 'file not found' <<< "$log"
 
 run --no-usb hevc10.mkv >/dev/null 2>&1
 check "hevc 10-bit: re-encoded to h264"      test "$(f hevc10-car.mp4 v:0 codec_name)" = h264
@@ -140,6 +163,8 @@ check "portrait 1080x1920: fits 720 high"    test "$(f portrait-car.mp4 v:0 widt
 
 run --no-usb full-hd.mp4 >/dev/null 2>&1
 check "1080p: scaled to 1280x720"            test "$(f full-hd-car.mp4 v:0 width,height)" = "1280,720"
+run --no-usb wide.mp4 >/dev/null 2>&1
+check "wide 1920x360: fits 1280 wide"        test "$(f wide-car.mp4 v:0 width,height)" = "1280,240"
 log=$(run --no-usb --force --max-height 1080 full-hd.mp4 2>&1)
 check "--max-height 1080: 1080p copied"      grep -q 'video  copy' <<< "$log"
 check "--max-height 1080: size kept"         test "$(f full-hd-car.mp4 v:0 width,height)" = "1920,1080"
@@ -150,6 +175,7 @@ log=$(run --no-usb silent.mp4 2>&1)
 check "no audio: succeeds"                   test -f silent-car.mp4
 check "no audio: warns"                      grep -q 'no audio stream' <<< "$log"
 check "no audio: video only"                 test "$(streams silent-car.mp4)" = video
+check "no audio: probe reports audio none"   grep -q 'audio none' <<< "$log"
 
 run --no-usb level51.mp4 >/dev/null 2>&1
 check "level 5.1: re-encoded to <= 4.1"      test "$(f level51-car.mp4 v:0 level)" -le 41
@@ -159,6 +185,14 @@ log=$(run --no-usb --force ok.mp4 2>&1)
 check "SDR source: no HDR warning"           not grep -q 'HDR source' <<< "$log"
 run --no-usb hi422.mkv >/dev/null 2>&1
 check "4:2:2: re-encoded to 4:2:0"           test "$(f hi422-car.mp4 v:0 pix_fmt)" = yuv420p
+run --no-usb mpeg2-main.mp4 >/dev/null 2>&1
+check "mpeg2 4:2:0 Main: re-encoded to h264" test "$(f mpeg2-main-car.mp4 v:0 codec_name)" = h264
+run --no-usb ac3-stereo.mp4 >/dev/null 2>&1
+check "stereo ac3: re-encoded to aac"        test "$(f ac3-stereo-car.mp4 a:0 codec_name)" = aac
+if [[ -n "$copies" ]]; then
+    run --no-usb h264-level0.mp4 >/dev/null 2>&1
+    check "level 0: video copied, level kept"  test "$(f h264-level0-car.mp4 v:0 level)" = 0
+fi
 
 log=$(run --no-usb covered.mkv 2>&1)
 check "attachment: video copied"             grep -q 'video  copy' <<< "$log"
@@ -177,13 +211,141 @@ check "broken input: non-zero exit"          test $? -ne 0
 check "broken input: no output left"         test ! -e broken-car.mp4
 parts=(.*.part)
 check "broken input: no temp file left"      test ! -e "${parts[0]}"
+# ffmpeg writes the temp file, then the rename onto a folder fails
+mkdir -p folder-out.mp4
+run --no-usb --force ok.mp4 folder-out.mp4 >/dev/null 2>&1
+check "output is a folder: no temp file left" test ! -e .folder-out.mp4.part
+
+# An output of exactly 1 MiB: ok.mp4 padded with a comment tag (carify keeps the metadata),
+# the padding sized from a first run's output.
+mib=1048576
+pad_ok() {  # pad_ok <comment length>: writes padded.mp4
+    { echo ';FFMETADATA1'; printf 'comment='; head -c "$1" /dev/zero | tr '\0' x; echo; } > pad.txt
+    ffmpeg -hide_banner -loglevel error -nostdin -y -i ok.mp4 -f ffmetadata -i pad.txt \
+        -map 0 -map_metadata 1 -c copy padded.mp4
+}
+pad_ok 900000
+run --no-usb padded.mp4 >/dev/null 2>&1
+pad_ok $(( 900000 + mib - $(wc -c < padded-car.mp4) ))
+log=$(run --no-usb --force padded.mp4 2>&1)
+check "exactly 1 MiB: output is 1048576 bytes" test "$(( $(wc -c < padded-car.mp4) ))" -eq $mib
+check "exactly 1 MiB: size shown as 1 MB"    grep -qF '(1 MB)' <<< "$log"
 
 CARIFY_USB_DIR=usb run ok.mp4 out-usb.mp4 >/dev/null 2>&1
 check "usb: copied to CARIFY_USB_DIR"        test -f usb/out-usb.mp4
 CARIFY_USB_DIR=usb run --no-usb ok.mp4 out-nousb.mp4 >/dev/null 2>&1
 check "--no-usb: not copied"                 test ! -e usb/out-nousb.mp4
+log=$(CARIFY_USB_DIR=no-such-folder run ok.mp4 out-badusb.mp4 2>&1); rc=$?
+check "CARIFY_USB_DIR not a folder: still succeeds" test $rc -eq 0
+check "CARIFY_USB_DIR not a folder: warns"   grep -q 'CARIFY_USB_DIR is not a folder' <<< "$log"
+printf 'an older copy' > usb/out-usb-again.mp4
+CARIFY_USB_DIR=usb run ok.mp4 out-usb-again.mp4 >/dev/null 2>&1
+check "usb: replaces an older copy on the stick" test $? -eq 0
+check "usb: the stick's copy is the new file"  cmp -s out-usb-again.mp4 usb/out-usb-again.mp4
+CARIFY_USB_DIR=no-such-folder run ok.mp4 out-usb-nofolder.mp4 >/dev/null 2>&1
+check "usb: CARIFY_USB_DIR not a folder still succeeds" test $? -eq 0
+if [[ "$target" != bash ]]; then
+    mkdir -p usb/out-usb-blocked.mp4     # a folder where the copy should go, so the copy fails
+    log=$(CARIFY_USB_DIR=usb run ok.mp4 out-usb-blocked.mp4 2>&1)
+    check "usb: failed copy gives its reason"    grep -q 'copy to .* failed: .' <<< "$log"
+    check "usb: failed copy reason has no PowerShell wrapper" not grep -q 'Exception calling' <<< "$log"
+fi
 
 check "--version"                            grep -Eq '^carify [0-9]+\.[0-9]+\.[0-9]+$' <<< "$(run --version 2>&1 | tr -d '\r')"
+run --version >/dev/null 2>&1
+check "--version: exits 0"                   test $? -eq 0
+
+# Status is coloured only where it's shown: never when stderr is captured, as it is here.
+log=$(unset NO_COLOR; WT_SESSION=1 TERM_PROGRAM=vscode COLORTERM=truecolor run --no-usb missing.mp4 2>&1)
+check "captured stderr: no colour, even in a colour terminal" not grep -qF $'\e[' <<< "$log"
+
+if [[ "$target" != bash ]]; then
+    syntax=$(cd "$root" && "$target" -NoProfile -ExecutionPolicy Bypass -Command 'Get-Command ./carify.ps1 -Syntax' 2>&1 | tr -d '\r')
+    check "help: the input file is required"     grep -q '^carify\.ps1 \[-In\] <string> ' <<< "$syntax"
+    check "help: -Version is a form of its own"  grep -qx 'carify\.ps1 -Version \[<CommonParameters>\]' <<< "$syntax"
+fi
+
+# Colour on a console. Windows PowerShell only: carify.ps1 runs in a host whose stderr is the
+# console (CONOUT$) while [Console]::Error is a buffer printed afterwards, so the colour codes can be
+# read. CARIFY_TEST_PS_MAJOR makes $PSVersionTable claim that PowerShell version.
+if [[ "$target" == powershell ]]; then
+    cat > console-run.ps1 <<'PS'
+Add-Type -Namespace CarifyTest -Name Kernel -MemberDefinition @'
+[DllImport("kernel32.dll", SetLastError = true)] public static extern bool SetStdHandle(int n, IntPtr h);
+[DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+public static extern IntPtr CreateFile(string name, uint access, uint share, IntPtr sa, uint disp, uint flags, IntPtr t);
+'@
+$carify = $args[0]
+$con = [CarifyTest.Kernel]::CreateFile('CONOUT$', [uint32]3221225472, 3, [IntPtr]::Zero, 3, 0, [IntPtr]::Zero)
+$null = [CarifyTest.Kernel]::SetStdHandle(-12, $con)
+# .NET Framework remembers whether stderr was redirected: make it look again
+[Console].GetField('_stdErrRedirectQueried', [Reflection.BindingFlags]'Static,NonPublic').SetValue($null, $false)
+if ([Console]::IsErrorRedirected) { 'console-run: no console to write to'; exit 99 }
+if ($env:CARIFY_TEST_PS_MAJOR) { $PSVersionTable.PSVersion = [version]"$env:CARIFY_TEST_PS_MAJOR.0" }
+$buffer = New-Object IO.StringWriter
+[Console]::SetError($buffer)
+& $carify missing.mp4 -NoUsb
+$code = $LASTEXITCODE
+[Console]::Out.Write($buffer.ToString())
+exit $code
+PS
+    # console_err [NAME=value...]: what carify.ps1 shows on a console for a missing input
+    console_err() {
+        env -u NO_COLOR -u WT_SESSION -u TERM_PROGRAM -u CARIFY_THEME -u CARIFY_TEST_PS_MAJOR "$@" \
+            "$target" -NoProfile -ExecutionPolicy Bypass -File console-run.ps1 "$root/carify.ps1" 2>&1 | tr -d '\r'
+    }
+    night_err=$'\e[38;2;255;110;122m' day_err=$'\e[38;2;176;32;48m'
+    check "console, Windows Terminal: nightshift colours" grep -qF "$night_err" <<< "$(console_err WT_SESSION=1)"
+    check "console, VS Code terminal: coloured"           grep -qF "$night_err" <<< "$(console_err TERM_PROGRAM=vscode)"
+    check "console, PowerShell 7: coloured"               grep -qF "$night_err" <<< "$(console_err CARIFY_TEST_PS_MAJOR=7)"
+    check "console, CARIFY_THEME=dayshift: dayshift colours" grep -qF "$day_err" <<< "$(console_err WT_SESSION=1 CARIFY_THEME=dayshift)"
+    log=$(console_err WT_SESSION=1 NO_COLOR=1)
+    check "console, NO_COLOR: message still shown"       grep -q 'file not found' <<< "$log"
+    check "console, NO_COLOR: no colour codes"            not grep -qF $'\e[' <<< "$log"
+fi
+
+# carify.ps1 on Windows: the MOVIES drive search and the FAT32 4 GB limit. No real drive is used:
+# run_fake_movies stands in for Get-CimInstance (a MOVIES drive that is a folder here, with the
+# file system given) and, when a size is given, for New-Object IO.FileInfo (the output's size),
+# so the 4 GB limit is reached without writing 4 GB.
+if [[ "$target" != bash && -n "$windows" ]]; then
+    cat > fake-movies.ps1 <<'PS'
+param([string]$FakeCarify, [string]$FakeDrive, [string]$FakeFs, [long]$FakeSize)
+function Get-CimInstance { [pscustomobject]@{ DeviceID = $FakeDrive; FileSystem = $FakeFs } }
+function New-Object {
+    if ($FakeSize -ge 0 -and "$($args[0])" -eq 'IO.FileInfo') { return [pscustomobject]@{ Length = $FakeSize } }
+    Microsoft.PowerShell.Utility\New-Object @args
+}
+& $FakeCarify @args
+exit $LASTEXITCODE
+PS
+    run_fake_movies() {  # run_fake_movies <drive folder> <file system> <size, -1 for real> <carify args...>
+        local drive="$1" fs="$2" size="$3"; shift 3
+        mkdir -p "$drive"
+        "$target" -NoProfile -ExecutionPolicy Bypass -File "$(cygpath -w fake-movies.ps1)" \
+            -FakeCarify "$(cygpath -w "$root/carify.ps1")" -FakeDrive "$(cygpath -w "$drive")" \
+            -FakeFs "$fs" -FakeSize "$size" "$@"
+    }
+    run_fake_movies movies-exfat exFAT -1 ok.mp4 out-movies.mp4 >/dev/null 2>&1
+    check "usb: MOVIES drive found, copied to it"  test -f movies-exfat/out-movies.mp4
+    run_fake_movies movies-fat32 FAT32 -1 ok.mp4 out-fat32-small.mp4 >/dev/null 2>&1
+    check "usb: FAT32 MOVIES drive takes a small file" test -f movies-fat32/out-fat32-small.mp4
+    run_fake_movies movies-fat32 FAT32 4294967295 ok.mp4 out-fat32-4g.mp4 >/dev/null 2>&1
+    check "usb: FAT32 MOVIES drive takes a file of 4 GB less a byte" test -f movies-fat32/out-fat32-4g.mp4
+    run_fake_movies movies-fat32 FAT32 4294967296 ok.mp4 out-fat32-over.mp4 >/dev/null 2>&1
+    check "usb: FAT32 MOVIES drive refuses a file over 4 GB" test $? -ne 0 -a ! -e movies-fat32/out-fat32-over.mp4
+    run_fake_movies movies-exfat exFAT 4294967296 ok.mp4 out-exfat-over.mp4 >/dev/null 2>&1
+    check "usb: exFAT MOVIES drive takes a file over 4 GB" test -f movies-exfat/out-exfat-over.mp4
+
+    # Outside Windows (OS not Windows_NT) carify.ps1 looks in /run/media/$USER/MOVIES and the like.
+    # A USER that climbs out of /run/media points that search at a folder here instead.
+    here_nodrive=$(cygpath -m "$work"); here_nodrive=${here_nodrive#?:}
+    mkdir -p home-user/MOVIES
+    OS=Linux USER="../..$here_nodrive/home-user" run ok.mp4 out-user-movies.mp4 >/dev/null 2>&1
+    check "usb: outside Windows, MOVIES under /run/media/\$USER is used" test -f home-user/MOVIES/out-user-movies.mp4
+    OS=Linux USER=carify-test-nobody run ok.mp4 out-no-movies.mp4 >/dev/null 2>&1
+    check "usb: outside Windows, no MOVIES folder still succeeds" test $? -eq 0
+fi
 
 if [[ "$target" == bash ]]; then
     CARIFY_BIN="$work/bin" CARIFY_URL="file://$root/carify" sh "$root/install.sh" >/dev/null 2>&1
