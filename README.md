@@ -32,7 +32,7 @@ Linux, macOS, WSL:
 curl -fsSL https://raw.githubusercontent.com/Real-Fruit-Snacks/carify/main/install.sh | sh
 ```
 
-Windows, in PowerShell (use this one on Windows, not the bash script under Git Bash, which misreads Windows ffprobe's output):
+Windows, in PowerShell:
 
 ```powershell
 irm https://raw.githubusercontent.com/Real-Fruit-Snacks/carify/main/install.ps1 | iex
@@ -47,7 +47,7 @@ carify itself makes no network connections. Each installer downloads one script 
 What the installers change, and how to undo it:
 
 - `install.sh` puts `carify` in `~/.local/bin`, and tells you if that folder isn't on your PATH or ffmpeg is missing. To uninstall, delete `~/.local/bin/carify`.
-- `install.ps1` puts `carify.ps1` in `$HOME\bin` and adds that folder to your user PATH. Run with `irm | iex`, it also sets the execution policy to `RemoteSigned` for your user if it was `Restricted` or `Undefined`, so local scripts can run. To uninstall, delete `$HOME\bin\carify.ps1` and remove `$HOME\bin` from your user PATH (and, if you like, `Set-ExecutionPolicy -Scope CurrentUser Undefined`).
+- `install.ps1` puts `carify.ps1` in `$HOME\bin` and adds that folder to your user PATH. It also sets the execution policy to `RemoteSigned` for your user if the saved one was `Restricted` or `Undefined`, so local scripts can run. To uninstall, delete `$HOME\bin\carify.ps1` and remove `$HOME\bin` from your user PATH (and, if you like, `Set-ExecutionPolicy -Scope CurrentUser Undefined`).
 - Both read `CARIFY_BIN` (install folder), `CARIFY_REF` (a tag such as `v1.2.0` instead of `main`) and `CARIFY_URL` (download the script from a mirror).
 
 ### Offline
@@ -55,7 +55,7 @@ What the installers change, and how to undo it:
 1. On a machine with a network, download `carify-<version>-offline.zip` from the [latest release](https://github.com/Real-Fruit-Snacks/carify/releases/latest).
 2. Download an ffmpeg build too; it isn't in the zip. For Windows, a standalone build from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) or a `gpl` one from [BtbN](https://github.com/BtbN/FFmpeg-Builds/releases); for Linux and macOS, a static build from those [ffmpeg.org](https://ffmpeg.org/download.html) lists.
 3. On the offline machine, unzip ffmpeg and put the folder holding `ffmpeg` and `ffprobe` on your PATH: on Linux and macOS add `export PATH="<folder>:$PATH"` to your shell profile; on Windows add its `bin` folder in "Edit environment variables for your account". On macOS, if it's blocked as coming from an unidentified developer, run `xattr -d com.apple.quarantine` on both files.
-4. Unzip carify's zip; it makes a `carify-<version>` folder. In that folder run `sh ./install.sh`, or on Windows `powershell -ExecutionPolicy Bypass -File .\install.ps1`. Run as a file, the installer copies the script beside it instead of downloading one, unless `CARIFY_REF` or `CARIFY_URL` is set. Run this way, install.ps1 leaves the execution policy alone: if `carify` then says running scripts is disabled, run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once.
+4. Unzip carify's zip; it makes a `carify-<version>` folder. In that folder run `sh ./install.sh`, or on Windows `powershell -ExecutionPolicy Bypass -File .\install.ps1`. Run as a file, the installer copies the script beside it instead of downloading one, unless `CARIFY_REF` or `CARIFY_URL` is set. `-ExecutionPolicy Bypass` only lasts for that one run, so install.ps1 still sets the policy for your user as above.
 
 ## Usage
 
@@ -124,11 +124,11 @@ The four test clips are ffmpeg's `testsrc2` picture with a sine tone: three each
 ## What happens to a file
 
 1. `ffprobe` reads the first video stream (cover art is skipped) and the first audio stream.
-2. Video is copied when it is H.264, `yuv420p`, Baseline/Main/High profile, level 4.1 or lower, and fits 1280×720. Otherwise it is re-encoded with `libx264 -preset veryfast -crf 20 -profile:v high -level:v 4.1` and scaled down to fit the box, aspect ratio kept. Nothing is scaled up.
+2. Video is copied when it is H.264, `yuv420p`, Baseline/Main/High profile, level 4.1 or lower, and fits 1280×720. Otherwise it is re-encoded with `libx264 -preset veryfast -crf 20 -profile:v high -level:v 4.1` and scaled down to fit the box, aspect ratio kept, in limited (TV) range so a full-range phone clip isn't re-encoded again next time. Nothing is scaled up.
 3. Audio is copied when it is AAC with two channels or fewer. Otherwise it becomes AAC stereo at 160 kbps. A file with no audio track is converted silent, with a warning.
 4. Only those two streams are kept: subtitles, attachments, extra audio tracks and data streams are dropped. Metadata such as the title is kept.
-5. The MP4 is written with `-movflags +faststart` to a temporary `.<name>.part` file beside the output and renamed when ffmpeg finishes, so a cancelled run leaves nothing half-written. The input file is never changed.
-6. If a drive whose volume label is exactly **MOVIES** is mounted, the file is copied onto it, replacing a file of the same name there: on Linux at `/run/media/$USER/MOVIES`, `/media/$USER/MOVIES` or `/media/MOVIES`, on macOS at `/Volumes/MOVIES`, on Windows any drive with that label. With none mounted, carify stops after writing the file. Set the label once (Files or Disks on Linux, Disk Utility on macOS, Rename in Explorer on Windows) and you never drag files again.
+5. The MP4 is written with `-movflags +faststart` to a temporary `.<name>.part` file beside the output and renamed when ffmpeg finishes, so a cancelled run leaves nothing half-written. A second carify writing the same output at the same time stops instead. The input file is never changed, even under another spelling of its name, and an output name that is a folder is refused.
+6. If a drive whose volume label is exactly **MOVIES** is mounted, the file is copied onto it, replacing a file of the same name there: on Linux at `/run/media/$USER/MOVIES`, `/media/$USER/MOVIES` or `/media/MOVIES`, on macOS at `/Volumes/MOVIES`, on Windows any drive with that label. With none mounted, carify stops after writing the file. A file converted straight onto the stick stays where it is. Set the label once (Files or Disks on Linux, Disk Utility on macOS, Rename in Explorer on Windows) and you never drag files again.
 
 ## What's in it
 
@@ -144,7 +144,7 @@ The four test clips are ffmpeg's `testsrc2` picture with a sine tone: three each
 
 ## Tested on
 
-- Ubuntu 24.04 · bash 5.2 · ffmpeg 6.1.1 (all 42 checks `tests/run.sh` runs for the bash script)
+- Ubuntu 24.04 · bash 5.2 · ffmpeg 6.1.1 (all 80 checks `tests/run.sh` runs for the bash script)
 - CI on every push: Ubuntu (bash, PowerShell 7), macOS (bash 5 and the system `/bin/bash` 3.2), Windows (PowerShell 7 and Windows PowerShell 5.1)
 - *Not* tested: a list of head units by model year. The limits above are the common denominator that has worked across Uconnect generations, not a published spec. If a file played or failed on your car, [an issue](https://github.com/Real-Fruit-Snacks/carify/issues) saying which model year and head unit, with carify's output, is the data this project is short of.
 
