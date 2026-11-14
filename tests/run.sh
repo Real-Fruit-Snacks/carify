@@ -261,6 +261,11 @@ cp ok.mp4 stick/onstick.mp4
 CARIFY_USB_DIR=./stick run stick/onstick.mp4 >/dev/null 2>&1
 check "input on the stick: succeeds"         test $? -eq 0
 check "input on the stick: the result is kept" test "$(f stick/onstick-car.mp4 v:0 codec_name 2>/dev/null)" = h264
+# Options after the input, the way PowerShell takes them
+cp ok.mp4 late.mp4
+CARIFY_USB_DIR=usb run late.mp4 --no-usb >/dev/null 2>&1
+check "option after the input: still an option" test -f late-car.mp4 -a ! -e ./--no-usb
+check "option after the input: honoured"     test ! -e usb/late-car.mp4 -a ! -e usb/--no-usb
 
 # Two runs to one output name at once: the second is refused, and the first run's file is kept
 run --no-usb long.mp4 same-car.mp4 >/dev/null 2>&1 &
