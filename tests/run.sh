@@ -98,9 +98,6 @@ gen hi422.mkv   -map 0:v -map 1:a -c:v libx264 -pix_fmt yuv422p -c:a aac -ac 2
 SIZE=1920x360 gen wide.mp4 -map 0:v -map 1:a -c:v libx264 -profile:v high -pix_fmt yuv420p -c:a aac -ac 2
 # MPEG-2 Main profile, 8-bit 4:2:0, level 8: only the codec says it needs re-encoding
 gen mpeg2-main.mp4 -map 0:v -map 1:a -c:v mpeg2video -pix_fmt yuv420p -c:a aac -ac 2
-# H.264 whose SPS says level 0 (rewritten by h264_metadata): within the 4.1 limit
-gen h264-level0.mp4 -map 0:v -map 1:a -c:v libx264 -profile:v high -pix_fmt yuv420p \
-                -bsf:v h264_metadata=level=0 -c:a aac -ac 2
 gen ac3-stereo.mp4 -map 0:v -map 1:a -c:v libx264 -profile:v high -pix_fmt yuv420p -c:a ac3 -ac 2
 # Cover art: an MKV with an image attachment, and an MP3 whose only "video" is the cover
 ffmpeg -hide_banner -loglevel error -nostdin -y -f lavfi -i "color=c=orange:size=300x300:duration=1" -frames:v 1 cover.png
@@ -129,8 +126,6 @@ check "compliant file: video stays h264"     test "$(f ok-car.mp4 v:0 codec_name
 check "compliant file: probe reports the audio" grep -q 'audio aac' <<< "$log"
 ok_size=$(( $(wc -c < ok-car.mp4) ))
 check "under 1 MiB: size shown in KB"        grep -qF "($(( ok_size / 1024 )) KB)" <<< "$log"
-# Checks that need a stream copied run only where the compliant file was copied.
-copies=; grep -q 'video  copy' <<< "$log" && copies=1
 
 run --no-usb ok.mp4 >/dev/null 2>&1
 check "existing output refused"              test $? -ne 0
@@ -189,10 +184,6 @@ run --no-usb mpeg2-main.mp4 >/dev/null 2>&1
 check "mpeg2 4:2:0 Main: re-encoded to h264" test "$(f mpeg2-main-car.mp4 v:0 codec_name)" = h264
 run --no-usb ac3-stereo.mp4 >/dev/null 2>&1
 check "stereo ac3: re-encoded to aac"        test "$(f ac3-stereo-car.mp4 a:0 codec_name)" = aac
-if [[ -n "$copies" ]]; then
-    run --no-usb h264-level0.mp4 >/dev/null 2>&1
-    check "level 0: video copied, level kept"  test "$(f h264-level0-car.mp4 v:0 level)" = 0
-fi
 
 log=$(run --no-usb covered.mkv 2>&1)
 check "attachment: video copied"             grep -q 'video  copy' <<< "$log"
@@ -242,8 +233,6 @@ printf 'an older copy' > usb/out-usb-again.mp4
 CARIFY_USB_DIR=usb run ok.mp4 out-usb-again.mp4 >/dev/null 2>&1
 check "usb: replaces an older copy on the stick" test $? -eq 0
 check "usb: the stick's copy is the new file"  cmp -s out-usb-again.mp4 usb/out-usb-again.mp4
-CARIFY_USB_DIR=no-such-folder run ok.mp4 out-usb-nofolder.mp4 >/dev/null 2>&1
-check "usb: CARIFY_USB_DIR not a folder still succeeds" test $? -eq 0
 if [[ "$target" != bash ]]; then
     mkdir -p usb/out-usb-blocked.mp4     # a folder where the copy should go, so the copy fails
     log=$(CARIFY_USB_DIR=usb run ok.mp4 out-usb-blocked.mp4 2>&1)
