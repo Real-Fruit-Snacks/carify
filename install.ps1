@@ -19,6 +19,17 @@
     $local = if ($PSScriptRoot -and -not $env:CARIFY_URL -and -not $env:CARIFY_REF) { Join-Path $PSScriptRoot 'carify.ps1' }
     $isWin = $env:OS -eq 'Windows_NT'
 
+    # The execution policy a new PowerShell window will run carify.ps1 under. Not Get-ExecutionPolicy
+    # on its own: run as "powershell -ExecutionPolicy Bypass -File .\install.ps1" that says Bypass,
+    # which lasts only as long as this process. Same order as PowerShell: Group Policy first.
+    function Get-SavedExecutionPolicy {
+        foreach ($scope in 'MachinePolicy', 'UserPolicy', 'CurrentUser', 'LocalMachine') {
+            $p = "$(Get-ExecutionPolicy -Scope $scope)"
+            if ($p -ne 'Undefined') { return $p }
+        }
+        'Undefined'
+    }
+
     New-Item -ItemType Directory -Force -Path $bin | Out-Null
     $dest = Join-Path $bin 'carify.ps1'
     if ($local -and [IO.File]::Exists($local)) {
@@ -46,7 +57,7 @@
         }
         if (($env:Path -split ';') -notcontains $bin) { $env:Path = "$env:Path;$bin" }
 
-        $policy = Get-ExecutionPolicy
+        $policy = Get-SavedExecutionPolicy
         if ($policy -in 'Restricted', 'Undefined') {
             try {
                 Set-ExecutionPolicy -Scope CurrentUser RemoteSigned -Force
