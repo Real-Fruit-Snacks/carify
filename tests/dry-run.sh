@@ -3,6 +3,9 @@
 # one argument per line, and nothing run, written or copied.
 # usage: tests/dry-run.sh [bash|pwsh|powershell]   (default bash)
 # CARIFY_BASH=/bin/bash picks the interpreter for the bash target.
+# The checks are strings run by eval, so the $ in them is meant to wait (SC2016) and the want_*
+# values they compare against look unused (SC2034).
+# shellcheck disable=SC2016,SC2034
 set -uo pipefail
 
 target="${1:-bash}"
