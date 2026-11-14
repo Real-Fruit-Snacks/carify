@@ -123,8 +123,9 @@ probe() {
         -show_entries stream=codec_name,pix_fmt,profile,level,width,height,color_transfer,channels \
         -of default=noprint_wrappers=1 "file:$in"
 }
-vinfo=$(probe V:0) || die "ffprobe could not read $in"
-ainfo=$(probe a:0) || die "ffprobe could not read $in"
+# tr: ffprobe for Windows (Git Bash, MSYS2) ends its lines with CRLF.
+vinfo=$(probe V:0 | tr -d '\r') || die "ffprobe could not read $in"
+ainfo=$(probe a:0 | tr -d '\r') || die "ffprobe could not read $in"
 
 vcodec='' vpix='' vprof='' vlevel='' vwidth='' vheight='' vtrc='' acodec='' achan=''
 while IFS='=' read -r k v; do
