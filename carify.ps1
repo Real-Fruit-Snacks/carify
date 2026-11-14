@@ -17,6 +17,9 @@
     Output file. Defaults to <input-name>-car.mp4 next to the input.
 .PARAMETER Force
     Overwrite the output file if it already exists.
+.PARAMETER DryRun
+    Probe the input and print the plan and the ffmpeg command it would run, one
+    argument per line, without converting, writing or copying anything.
 .PARAMETER NoUsb
     Don't copy the result to a drive labelled MOVIES.
 .PARAMETER MaxHeight
@@ -29,12 +32,15 @@
     carify.ps1 movie.mkv D:\out.mp4 -Force
 .EXAMPLE
     carify.ps1 movie.mkv -MaxHeight 1080
+.EXAMPLE
+    carify.ps1 movie.mkv -DryRun
 #>
 [CmdletBinding(DefaultParameterSetName = 'Convert')]
 param(
     [Parameter(ParameterSetName = 'Convert', Mandatory = $true, Position = 0)][string]$In,
     [Parameter(ParameterSetName = 'Convert', Position = 1)][string]$Out,
     [Parameter(ParameterSetName = 'Convert')][switch]$Force,
+    [Parameter(ParameterSetName = 'Convert')][switch]$DryRun,
     [Parameter(ParameterSetName = 'Convert')][switch]$NoUsb,
     [Parameter(ParameterSetName = 'Convert')][ValidateRange(144, 4320)][int]$MaxHeight = 720,
     [Parameter(ParameterSetName = 'Version', Mandatory = $true)][switch]$Version
@@ -169,10 +175,12 @@ else {
 # Write to a hidden temp file and rename, so an interrupted run never leaves
 # a half-written movie-car.mp4 behind. finally runs on Ctrl+C too.
 $tmp = [IO.Path]::Combine($outDir, '.' + [IO.Path]::GetFileName($Out) + '.part')
+$ffArgs = @('-hide_banner', '-nostdin', '-loglevel', 'warning', '-stats', '-y', '-i', "file:$In",
+    '-map', '0:V:0') + $vopts + $aopts + @('-sn', '-dn', '-map_metadata', '0',
+    '-movflags', '+faststart', '-f', 'mp4', "file:$tmp")
+if ($DryRun) { Write-Output (@('ffmpeg') + $ffArgs); exit 0 }
 try {
-    & ffmpeg -hide_banner -nostdin -loglevel warning -stats -y -i "file:$In" `
-        -map '0:V:0' @vopts @aopts -sn -dn -map_metadata 0 `
-        -movflags '+faststart' -f mp4 "file:$tmp"
+    & ffmpeg @ffArgs
     if ($LASTEXITCODE -ne 0) { Exit-Carify "ffmpeg failed (exit $LASTEXITCODE)" $LASTEXITCODE }
     if ([IO.File]::Exists($Out)) { [IO.File]::Delete($Out) }
     [IO.File]::Move($tmp, $Out)

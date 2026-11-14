@@ -13,6 +13,7 @@ usage: carify [options] <video> [output.mp4]
 
 options:
   -f, --force             overwrite the output file if it already exists
+      --dry-run           print the plan and the ffmpeg command, convert nothing
       --max-height <px>   largest frame height to allow (default 720;
                           width limit is height x 16/9)
       --no-usb            don't copy the result to a USB stick labelled MOVIES
@@ -61,6 +62,7 @@ note() { printf '%s       %s%s\n' "$c_mute" "$1" "$c_off" >&2; }
 
 # --- arguments -----------------------------------------------------------
 force=0
+dry=0
 usb=1
 max_h=720
 while [[ $# -gt 0 ]]; do
@@ -68,6 +70,7 @@ while [[ $# -gt 0 ]]; do
         -h|--help) usage; exit 0 ;;
         -V|--version) echo "carify $CARIFY_VERSION"; exit 0 ;;
         -f|--force) force=1; shift ;;
+        --dry-run) dry=1; shift ;;
         --no-usb) usb=0; shift ;;
         --max-height) [[ $# -ge 2 ]] || die "--max-height needs a value"; max_h="$2"; shift 2 ;;
         --max-height=*) max_h="${1#*=}"; shift ;;
@@ -171,12 +174,17 @@ fi
 # a half-written movie-car.mp4 behind.
 out_dir=$(dirname -- "$out")
 tmp="$out_dir/.$(basename -- "$out").part"
+cmd=(ffmpeg -hide_banner -nostdin -loglevel warning -stats -y -i "file:$in"
+     -map 0:V:0 "${vopts[@]}" "${aopts[@]}" -sn -dn -map_metadata 0
+     -movflags +faststart -f mp4 "file:$tmp")
+if [[ $dry -eq 1 ]]; then
+    printf '%s\n' "${cmd[@]}"
+    exit 0
+fi
 trap 'rm -f -- "$tmp"' EXIT
 trap 'exit 130' INT TERM
 
-if ! ffmpeg -hide_banner -nostdin -loglevel warning -stats -y -i "file:$in" \
-        -map 0:V:0 "${vopts[@]}" "${aopts[@]}" -sn -dn -map_metadata 0 \
-        -movflags +faststart -f mp4 "file:$tmp"; then
+if ! "${cmd[@]}"; then
     die "ffmpeg failed"
 fi
 mv -f -- "$tmp" "$out"
