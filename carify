@@ -101,7 +101,11 @@ done
 
 # Absolute path without needing GNU realpath (macOS ships bash 3.2 and no -f).
 abspath() { local d; d=$(cd -- "$(dirname -- "$1")" && pwd -P) && printf '%s/%s\n' "$d" "$(basename -- "$1")"; }
-[[ "$(abspath "$in")" != "$(abspath "$out")" ]] || die "output would overwrite the input: $out"
+# -ef also catches the same file under another name: MOVIE.MKV on a disk that ignores case.
+if [[ "$(abspath "$in")" == "$(abspath "$out")" || "$in" -ef "$out" ]]; then
+    die "output would overwrite the input: $out"
+fi
+[[ ! -d "$out" ]] || die "output is a folder, not a file: $out"
 if [[ -e "$out" && $force -eq 0 ]]; then
     die "output already exists: $out (use --force to overwrite)"
 fi
@@ -171,7 +175,9 @@ fi
 
 # --- encode --------------------------------------------------------------
 # Write to a hidden temp file and rename, so an interrupted run never leaves
-# a half-written movie-car.mp4 behind.
+# a half-written movie-car.mp4 behind. The temp file is created only if it
+# isn't there yet (noclobber opens it with O_EXCL), so a second carify writing
+# the same output stops instead of both reporting success.
 out_dir=$(dirname -- "$out")
 tmp="$out_dir/.$(basename -- "$out").part"
 cmd=(ffmpeg -hide_banner -nostdin -loglevel warning -stats -y -i "file:$in"
@@ -181,13 +187,21 @@ if [[ $dry -eq 1 ]]; then
     printf '%s\n' "${cmd[@]}"
     exit 0
 fi
+if ! (set -o noclobber; : > "$tmp") 2>/dev/null; then
+    [[ -e "$tmp" ]] && die "another carify is writing $out (if none is running, delete $tmp)"
+    die "cannot write to $out_dir"
+fi
 trap 'rm -f -- "$tmp"' EXIT
 trap 'exit 130' INT TERM
+# Checked again: another run may have written it while this one probed.
+if [[ -e "$out" && $force -eq 0 ]]; then
+    die "output already exists: $out (use --force to overwrite)"
+fi
 
 if ! "${cmd[@]}"; then
     die "ffmpeg failed"
 fi
-mv -f -- "$tmp" "$out"
+mv -f -- "$tmp" "$out" || die "could not replace $out"
 
 size=$(wc -c < "$out" | tr -d ' ')
 if [[ "$size" -ge 1048576 ]]; then human="$(( size / 1048576 )) MB"; else human="$(( size / 1024 )) KB"; fi
@@ -206,14 +220,20 @@ if [[ $usb -eq 1 ]]; then
     fi
     for dest in "${dests[@]}"; do
         [[ -d "$dest" ]] || continue
-        say usb "copying to $dest"
         target="$dest/$(basename -- "$out")"
-        if ! cp -- "$out" "$target"; then
-            rm -f -- "$target"
-            if [[ "$size" -gt 4294967295 ]]; then
-                die "copy failed; FAT32 sticks cap files at 4 GB. Reformat the stick as exFAT or use a lower --max-height"
+        if [[ "$out" -ef "$target" ]]; then
+            # Written straight onto the stick: copying it onto itself would fail
+            # and the clean-up after a failed copy would delete it.
+            say usb "already on the stick: $dest"
+        else
+            say usb "copying to $dest"
+            if ! cp -- "$out" "$target"; then
+                rm -f -- "$target"
+                if [[ "$size" -gt 4294967295 ]]; then
+                    die "copy failed; FAT32 sticks cap files at 4 GB. Reformat the stick as exFAT or use a lower --max-height"
+                fi
+                die "copy to $dest failed"
             fi
-            die "copy to $dest failed"
         fi
         sync
         ok usb "done; safe to remove the stick"

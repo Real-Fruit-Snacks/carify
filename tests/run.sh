@@ -74,8 +74,8 @@ PY
 gen() {  # gen <out> <ffmpeg output options...>
     local out="$1"; shift
     ffmpeg -hide_banner -loglevel error -nostdin -y \
-        -f lavfi -i "testsrc2=size=${SIZE:-640x360}:rate=24:duration=2" \
-        -f lavfi -i "sine=frequency=440:duration=2:sample_rate=48000" \
+        -f lavfi -i "testsrc2=size=${SIZE:-640x360}:rate=24:duration=${DUR:-2}" \
+        -f lavfi -i "sine=frequency=440:duration=${DUR:-2}:sample_rate=48000" \
         "$@" "$out"
 }
 
@@ -94,6 +94,9 @@ gen hdr.mkv     -map 0:v -map 1:a -vf setparams=color_primaries=bt2020:color_trc
                 -c:v libx265 -pix_fmt yuv420p10le \
                 -x265-params log-level=error:colorprim=bt2020:transfer=smpte2084:colormatrix=bt2020nc -c:a aac
 gen hi422.mkv   -map 0:v -map 1:a -c:v libx264 -pix_fmt yuv422p -c:a aac -ac 2
+# long enough to re-encode that a second run can start while it does
+SIZE=1920x1080 DUR=30 gen long.mp4 -map 0:v -map 1:a -c:v libx264 -preset ultrafast -crf 30 -pix_fmt yuv420p \
+                -c:a aac -ac 2
 # wider than 1280 but well under 720 high: only the width limit says it must shrink
 SIZE=1920x360 gen wide.mp4 -map 0:v -map 1:a -c:v libx264 -profile:v high -pix_fmt yuv420p -c:a aac -ac 2
 # MPEG-2 Main profile, 8-bit 4:2:0, level 8: only the codec says it needs re-encoding
@@ -134,12 +137,28 @@ check "--force overwrites"                   test $? -eq 0
 run --no-usb --force ok.mp4 ok.mp4 >/dev/null 2>&1
 check "output == input refused"              test $? -ne 0
 check "input untouched after refusal"        test "$(f ok.mp4 v:0 codec_name)" = h264
-# Windows names ignore case, so CASE.mp4 is the input itself (carify.ps1 only: the bash script compares exactly)
-if [[ "$target" != bash && -n "$windows" ]]; then
-    cp ok.mp4 case.mp4
-    run --no-usb --force case.mp4 CASE.mp4 >/dev/null 2>&1
-    check "output == input in another case refused (Windows)" test $? -ne 0
+# On a disk that ignores case (Windows, macOS) CASE.mp4 is the input itself; on one that doesn't,
+# it is a new file. Either way the input must come through unchanged.
+cp ok.mp4 case.mp4
+run --no-usb --force case.mp4 CASE.mp4 >/dev/null 2>&1; rc=$?
+check "output == input in another case: input untouched" cmp -s case.mp4 ok.mp4
+if [[ -n "$windows" ]]; then
+    check "output == input in another case refused (Windows)" test $rc -ne 0
 fi
+
+# --force onto an output that can't be replaced (read-only here; on Windows a player holding the file
+# open does the same): either it is replaced, or the run fails. The old file is never reported as
+# written or copied to the stick.
+printf 'an older conversion' > stuck-car.mp4
+chmod a-w stuck-car.mp4
+mkdir -p usb-stuck
+log=$(CARIFY_USB_DIR=usb-stuck run --force ok.mp4 stuck-car.mp4 2>&1); rc=$?
+chmod u+w stuck-car.mp4
+replaced() { test "$(f stuck-car.mp4 v:0 codec_name 2>/dev/null)" = h264; }
+failed_or_replaced() { [[ $rc -ne 0 ]] || replaced; }
+check "--force, output can't be replaced: fails unless replaced" failed_or_replaced
+check "--force, output can't be replaced: old file not copied"   not grep -qsF 'an older conversion' usb-stuck/stuck-car.mp4
+check "--force, output can't be replaced: no temp file left"     test ! -e .stuck-car.mp4.part
 log=$(run --no-usb missing.mp4 2>&1)
 check "missing input: file not found"        grep -q 'file not found' <<< "$log"
 log=$(run --no-usb < /dev/null 2>&1)
@@ -202,10 +221,14 @@ check "broken input: non-zero exit"          test $? -ne 0
 check "broken input: no output left"         test ! -e broken-car.mp4
 parts=(.*.part)
 check "broken input: no temp file left"      test ! -e "${parts[0]}"
-# ffmpeg writes the temp file, then the rename onto a folder fails
+# An output path that is a folder: refused before converting, with or without --force
 mkdir -p folder-out.mp4
-run --no-usb --force ok.mp4 folder-out.mp4 >/dev/null 2>&1
+log=$(CARIFY_USB_DIR=usb run --force ok.mp4 folder-out.mp4 2>&1); rc=$?
+check "output is a folder: refused"           test $rc -ne 0
+check "output is a folder: says so"           grep -q 'is a folder' <<< "$log"
+check "output is a folder: nothing written in it" test -z "$(ls -A folder-out.mp4)"
 check "output is a folder: no temp file left" test ! -e .folder-out.mp4.part
+check "output is a folder: nothing copied"    test ! -e usb/folder-out.mp4
 
 # An output of exactly 1 MiB: ok.mp4 padded with a comment tag (carify keeps the metadata),
 # the padding sized from a first run's output.
@@ -226,6 +249,30 @@ CARIFY_USB_DIR=usb run ok.mp4 out-usb.mp4 >/dev/null 2>&1
 check "usb: copied to CARIFY_USB_DIR"        test -f usb/out-usb.mp4
 CARIFY_USB_DIR=usb run --no-usb ok.mp4 out-nousb.mp4 >/dev/null 2>&1
 check "--no-usb: not copied"                 test ! -e usb/out-nousb.mp4
+# A file already on the stick: the result is written next to it, which is the stick, and kept
+mkdir -p stick
+cp ok.mp4 stick/onstick.mp4
+CARIFY_USB_DIR=./stick run stick/onstick.mp4 >/dev/null 2>&1
+check "input on the stick: succeeds"         test $? -eq 0
+check "input on the stick: the result is kept" test "$(f stick/onstick-car.mp4 v:0 codec_name 2>/dev/null)" = h264
+
+# Two runs to one output name at once: the second is refused, and the first run's file is kept
+run --no-usb long.mp4 same-car.mp4 >/dev/null 2>&1 &
+first=$!
+for _ in $(seq 300); do [[ -e .same-car.mp4.part ]] && break; sleep 0.1; done
+run --no-usb ok.mp4 same-car.mp4 >/dev/null 2>&1; second=$?
+wait "$first"; first=$?
+check "two runs, one output: the second is refused" test $second -ne 0
+check "two runs, one output: the first succeeds" test $first -eq 0
+check "two runs, one output: the first one's file is kept" test "$(f same-car.mp4 v:0 width,height 2>/dev/null)" = "1280,720"
+check "two runs, one output: no temp file left" test ! -e .same-car.mp4.part
+# The same, made certain: another run's temp file is there, as it is while that run converts
+printf 'another run' > .busy-car.mp4.part
+log=$(run --no-usb ok.mp4 busy-car.mp4 2>&1)
+check "output being written by another run: refused" test ! -e busy-car.mp4
+check "output being written by another run: says so" grep -q 'another carify' <<< "$log"
+check "output being written by another run: its temp file kept" grep -qx 'another run' .busy-car.mp4.part
+rm -f .busy-car.mp4.part
 log=$(CARIFY_USB_DIR=no-such-folder run ok.mp4 out-badusb.mp4 2>&1); rc=$?
 check "CARIFY_USB_DIR not a folder: still succeeds" test $rc -eq 0
 check "CARIFY_USB_DIR not a folder: warns"   grep -q 'CARIFY_USB_DIR is not a folder' <<< "$log"

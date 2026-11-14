@@ -67,6 +67,10 @@ function Write-Status([string]$Label, [string]$Text, [string]$Kind = 'tag') {
     else { [Console]::Error.WriteLine("$pad $Text") }
 }
 function Exit-Carify([string]$Text, [int]$Code = 1) { Write-Status 'error' $Text 'err'; exit $Code }
+# The reason a .NET call failed, without PowerShell's "Exception calling ..." wrapper
+function Get-Reason($Err) {
+    if ($Err.Exception.InnerException) { $Err.Exception.InnerException.Message } else { $Err.Exception.Message }
+}
 
 # --- arguments -------------------------------------------------------------
 $MaxHeight = [int][math]::Floor($MaxHeight / 2) * 2
@@ -100,8 +104,13 @@ if (-not [IO.Directory]::Exists($outDir)) { Exit-Carify "output folder does not 
 
 $isWin = $env:OS -eq 'Windows_NT'
 $cmp = if ($isWin) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
-if ([string]::Equals($In, $Out, $cmp)) { Exit-Carify "output would overwrite the input: $Out" }
-if (([IO.File]::Exists($Out) -or [IO.Directory]::Exists($Out)) -and -not $Force) {
+# macOS disks ignore case too: an existing MOVIE.MKV with the input's time stamp is the input.
+$sameFile = [string]::Equals($In, $Out, $cmp) -or ([IO.File]::Exists($Out) -and
+    [string]::Equals($In, $Out, [StringComparison]::OrdinalIgnoreCase) -and
+    [IO.File]::GetLastWriteTimeUtc($In) -eq [IO.File]::GetLastWriteTimeUtc($Out))
+if ($sameFile) { Exit-Carify "output would overwrite the input: $Out" }
+if ([IO.Directory]::Exists($Out)) { Exit-Carify "output is a folder, not a file: $Out" }
+if ([IO.File]::Exists($Out) -and -not $Force) {
     Exit-Carify "output already exists: $Out (use -Force to overwrite)"
 }
 
@@ -173,17 +182,31 @@ else {
 
 # --- encode ----------------------------------------------------------------
 # Write to a hidden temp file and rename, so an interrupted run never leaves
-# a half-written movie-car.mp4 behind. finally runs on Ctrl+C too.
+# a half-written movie-car.mp4 behind. finally runs on Ctrl+C too. The temp file
+# is created only if it isn't there yet, so a second carify writing the same
+# output stops instead of both reporting success.
 $tmp = [IO.Path]::Combine($outDir, '.' + [IO.Path]::GetFileName($Out) + '.part')
 $ffArgs = @('-hide_banner', '-nostdin', '-loglevel', 'warning', '-stats', '-y', '-i', "file:$In",
     '-map', '0:V:0') + $vopts + $aopts + @('-sn', '-dn', '-map_metadata', '0',
     '-movflags', '+faststart', '-f', 'mp4', "file:$tmp")
 if ($DryRun) { Write-Output (@('ffmpeg') + $ffArgs); exit 0 }
+try { [IO.File]::Open($tmp, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write).Dispose() }
+catch {
+    if ([IO.File]::Exists($tmp)) { Exit-Carify "another carify is writing $Out (if none is running, delete $tmp)" }
+    Exit-Carify "cannot write to ${outDir}: $(Get-Reason $_)"
+}
 try {
+    # Checked again: another run may have written it while this one probed.
+    if ([IO.File]::Exists($Out) -and -not $Force) { Exit-Carify "output already exists: $Out (use -Force to overwrite)" }
     & ffmpeg @ffArgs
     if ($LASTEXITCODE -ne 0) { Exit-Carify "ffmpeg failed (exit $LASTEXITCODE)" $LASTEXITCODE }
-    if ([IO.File]::Exists($Out)) { [IO.File]::Delete($Out) }
-    [IO.File]::Move($tmp, $Out)
+    # A .NET error here doesn't stop the script by itself: without the catch, a read-only output or
+    # one a player holds open would be reported as written and the old file copied to the stick.
+    try {
+        if ([IO.File]::Exists($Out)) { [IO.File]::Delete($Out) }
+        [IO.File]::Move($tmp, $Out)
+    }
+    catch { Exit-Carify "could not replace ${Out}: $(Get-Reason $_)" }
 }
 finally {
     if ([IO.File]::Exists($tmp)) { try { [IO.File]::Delete($tmp) } catch { $null = $_ } }
@@ -215,14 +238,21 @@ else {
 }
 if (-not $dest) { exit 0 }
 
+$target = [IO.Path]::Combine($dest, [IO.Path]::GetFileName($Out))
+if ([string]::Equals((Get-FullPath $target), $Out, $cmp)) {
+    # Written straight onto the stick: copying it onto itself would fail and the
+    # clean-up after a failed copy would delete it.
+    Write-Status 'usb' "already on the stick: $dest"
+    Write-Status 'usb' 'done; eject the stick before removing it' 'ok'
+    exit 0
+}
 if ($fs -eq 'FAT32' -and $size -gt 4294967295) {
     Exit-Carify "$dest is FAT32, which caps files at 4 GB. Reformat the stick as exFAT or use a lower -MaxHeight"
 }
 Write-Status 'usb' "copying to $dest"
-$target = [IO.Path]::Combine($dest, [IO.Path]::GetFileName($Out))
 try { [IO.File]::Copy($Out, $target, $true) }
 catch {
-    $why = if ($_.Exception.InnerException) { $_.Exception.InnerException.Message } else { $_.Exception.Message }
+    $why = Get-Reason $_
     try { [IO.File]::Delete($target) } catch { $null = $_ }
     Exit-Carify "copy to $dest failed: $why"
 }
