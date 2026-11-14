@@ -41,6 +41,8 @@ run() {
 }
 
 not() { ! "$@"; }
+# no_temp <output>: no hidden temp file of any run is left beside <output>
+no_temp() { local parts=("$(dirname -- "$1")/.$(basename -- "$1")".*part); test ! -e "${parts[0]}"; }
 # A file:// URL curl can open: on Windows it wants the drive letter, not Git Bash's /c/...
 file_url() {
     if [[ -n "$windows" ]]; then printf 'file:///%s' "$(cygpath -m "$1")"; else printf 'file://%s' "$1"; fi
@@ -154,6 +156,12 @@ check "output == input in another case: input untouched" cmp -s case.mp4 ok.mp4
 if [[ -n "$windows" ]]; then
     check "output == input in another case refused (Windows)" test $rc -ne 0
 fi
+# The input under its 8.3 short name, where the disk keeps those (Windows): the same file again
+cp ok.mp4 "long name input.mp4"
+if [[ -n "$windows" ]] && short=$(cygpath -d "long name input.mp4") && [[ "$short" != "long name input.mp4" ]]; then
+    run --no-usb --force "long name input.mp4" "$short" >/dev/null 2>&1
+    check "output == input under its short name: input untouched" cmp -s "long name input.mp4" ok.mp4
+fi
 
 # --force onto an output that can't be replaced (read-only here; on Windows a player holding the file
 # open does the same): either it is replaced, or the run fails. The old file is never reported as
@@ -167,7 +175,7 @@ replaced() { test "$(f stuck-car.mp4 v:0 codec_name 2>/dev/null)" = h264; }
 failed_or_replaced() { [[ $rc -ne 0 ]] || replaced; }
 check "--force, output can't be replaced: fails unless replaced" failed_or_replaced
 check "--force, output can't be replaced: old file not copied"   not grep -qsF 'an older conversion' usb-stuck/stuck-car.mp4
-check "--force, output can't be replaced: no temp file left"     test ! -e .stuck-car.mp4.part
+check "--force, output can't be replaced: no temp file left"     no_temp stuck-car.mp4
 log=$(run --no-usb missing.mp4 2>&1)
 check "missing input: file not found"        grep -q 'file not found' <<< "$log"
 log=$(run --no-usb < /dev/null 2>&1)
@@ -240,7 +248,7 @@ log=$(CARIFY_USB_DIR=usb run --force ok.mp4 folder-out.mp4 2>&1); rc=$?
 check "output is a folder: refused"           test $rc -ne 0
 check "output is a folder: says so"           grep -q 'is a folder' <<< "$log"
 check "output is a folder: nothing written in it" test -z "$(ls -A folder-out.mp4)"
-check "output is a folder: no temp file left" test ! -e .folder-out.mp4.part
+check "output is a folder: no temp file left" no_temp folder-out.mp4
 check "output is a folder: nothing copied"    test ! -e usb/folder-out.mp4
 
 # An output of exactly 1 MiB: ok.mp4 padded with a comment tag (carify keeps the metadata),
@@ -274,23 +282,27 @@ CARIFY_USB_DIR=usb run late.mp4 --no-usb >/dev/null 2>&1
 check "option after the input: still an option" test -f late-car.mp4 -a ! -e ./--no-usb
 check "option after the input: honoured"     test ! -e usb/late-car.mp4 -a ! -e usb/--no-usb
 
-# Two runs to one output name at once: the second is refused, and the first run's file is kept
+# Two runs to one output name at once, the short one started while the long one converts: one of
+# them fails, and the file kept is the one from the run that said it wrote it
 run --no-usb long.mp4 same-car.mp4 >/dev/null 2>&1 &
 first=$!
-for _ in $(seq 300); do [[ -e .same-car.mp4.part ]] && break; sleep 0.1; done
+for _ in $(seq 300); do no_temp same-car.mp4 || break; sleep 0.1; done
 run --no-usb ok.mp4 same-car.mp4 >/dev/null 2>&1; second=$?
 wait "$first"; first=$?
-check "two runs, one output: the second is refused" test $second -ne 0
-check "two runs, one output: the first succeeds" test $first -eq 0
-check "two runs, one output: the first one's file is kept" test "$(f same-car.mp4 v:0 width,height 2>/dev/null)" = "1280,720"
-check "two runs, one output: no temp file left" test ! -e .same-car.mp4.part
-# The same, made certain: another run's temp file is there, as it is while that run converts
-printf 'another run' > .busy-car.mp4.part
-log=$(run --no-usb ok.mp4 busy-car.mp4 2>&1)
-check "output being written by another run: refused" test ! -e busy-car.mp4
-check "output being written by another run: says so" grep -q 'another carify' <<< "$log"
-check "output being written by another run: its temp file kept" grep -qx 'another run' .busy-car.mp4.part
-rm -f .busy-car.mp4.part
+one_kept() {
+    case "$first,$second" in
+        0,0) false ;;
+        0,*) test "$(f same-car.mp4 v:0 width,height 2>/dev/null)" = "1280,720" ;;
+        *,0) test "$(f same-car.mp4 v:0 width,height 2>/dev/null)" = "640,360" ;;
+        *) false ;;
+    esac
+}
+check "two runs, one output: one fails, the other's file is kept" one_kept
+check "two runs, one output: no temp file left" no_temp same-car.mp4
+# A temp file left by a run that was killed outright doesn't block the next one
+printf 'a killed run' > .leftover-car.mp4.1.part
+run --no-usb ok.mp4 leftover-car.mp4 >/dev/null 2>&1
+check "a killed run's temp file: next run still converts" test "$(f leftover-car.mp4 v:0 codec_name 2>/dev/null)" = h264
 log=$(CARIFY_USB_DIR=no-such-folder run ok.mp4 out-badusb.mp4 2>&1); rc=$?
 check "CARIFY_USB_DIR not a folder: still succeeds" test $rc -eq 0
 check "CARIFY_USB_DIR not a folder: warns"   grep -q 'CARIFY_USB_DIR is not a folder' <<< "$log"
@@ -431,31 +443,49 @@ fi
 
 # install.ps1 decides on the execution policy saved for the user or the machine, not this process's:
 # run as "powershell -ExecutionPolicy Bypass -File .\install.ps1", Get-ExecutionPolicy says Bypass.
-# Only its Get-SavedExecutionPolicy function runs here, against made-up scopes, so nothing is changed.
+# Only its policy functions run here, read out of install.ps1, with Get-ExecutionPolicy and
+# Set-ExecutionPolicy standing in for the real ones on made-up scopes, so nothing is changed.
 if [[ "$target" != bash ]]; then
-    cat > saved-policy.ps1 <<'PS'
-param([string]$Install, [string]$Scopes)
+    cat > policy.ps1 <<'PS'
+param([string]$Install, [string]$Call, [string]$Scopes, [switch]$Overridden)
 $fake = @{}
 foreach ($pair in $Scopes -split ',') { $k, $v = $pair -split '=', 2; if ($k) { $fake[$k] = $v } }
 function Get-ExecutionPolicy([string]$Scope) { if ($fake.ContainsKey($Scope)) { $fake[$Scope] } else { 'Undefined' } }
+# Like the real one: saved, then an error when a more specific scope (this process's) overrides it
+function Set-ExecutionPolicy {
+    [CmdletBinding()] param([Parameter(Position = 0)][string]$ExecutionPolicy, [string]$Scope, [switch]$Force)
+    $fake[$Scope] = $ExecutionPolicy
+    if ($Overridden) { throw 'the setting is overridden by a policy defined at a more specific scope' }
+}
 $ast = [Management.Automation.Language.Parser]::ParseFile($Install, [ref]$null, [ref]$null)
-$fn = $ast.Find({ param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and
-    $n.Name -eq 'Get-SavedExecutionPolicy' }, $true)
-if (-not $fn) { 'install.ps1 has no Get-SavedExecutionPolicy'; exit 1 }
-. ([scriptblock]::Create($fn.Extent.Text))
-Get-SavedExecutionPolicy
+foreach ($name in 'Get-SavedExecutionPolicy', 'Enable-LocalScript') {
+    $fn = $ast.Find({ param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and
+        $n.Name -eq $name }, $true)
+    if (-not $fn) { "install.ps1 has no $name"; exit 1 }
+    . ([scriptblock]::Create($fn.Extent.Text))
+}
+& $Call
+if ($Call -eq 'Enable-LocalScript') { "CurrentUser: $(Get-ExecutionPolicy -Scope CurrentUser)" }
 PS
-    saved_policy() {
-        "$target" -NoProfile -ExecutionPolicy Bypass -File saved-policy.ps1 "$root/install.ps1" "$1" 2>&1 | tr -d '\r'
+    policy() {  # policy <function> <scopes> [-Overridden]
+        "$target" -NoProfile -ExecutionPolicy Bypass -File policy.ps1 "$root/install.ps1" "$@" 2>&1 | tr -d '\r'
     }
+    saved() { policy Get-SavedExecutionPolicy "$1"; }
     check "install.ps1: under -ExecutionPolicy Bypass, the saved policy" \
-        test "$(saved_policy Process=Bypass,LocalMachine=Restricted)" = Restricted
+        test "$(saved Process=Bypass,LocalMachine=Restricted)" = Restricted
     check "install.ps1: the user's policy before the machine's" \
-        test "$(saved_policy Process=Bypass,CurrentUser=RemoteSigned,LocalMachine=Restricted)" = RemoteSigned
+        test "$(saved Process=Bypass,CurrentUser=RemoteSigned,LocalMachine=Restricted)" = RemoteSigned
     check "install.ps1: Group Policy before both" \
-        test "$(saved_policy MachinePolicy=AllSigned,CurrentUser=RemoteSigned)" = AllSigned
-    check "install.ps1: nothing saved is Undefined"   test "$(saved_policy Process=Bypass)" = Undefined
-    check "install.ps1: decides on the saved policy"  grep -qF 'policy = Get-SavedExecutionPolicy' "$root/install.ps1"
+        test "$(saved MachinePolicy=AllSigned,CurrentUser=RemoteSigned)" = AllSigned
+    check "install.ps1: nothing saved is Undefined" test "$(saved Process=Bypass)" = Undefined
+    log=$(policy Enable-LocalScript Process=Bypass,LocalMachine=Restricted -Overridden)
+    check "install.ps1: Restricted machine, run with Bypass: sets RemoteSigned" grep -qx 'CurrentUser: RemoteSigned' <<< "$log"
+    check "install.ps1: Restricted machine, run with Bypass: says it did" grep -q '^set execution policy to RemoteSigned' <<< "$log"
+    log=$(policy Enable-LocalScript MachinePolicy=Restricted)
+    check "install.ps1: Restricted by Group Policy: says it could not" grep -q '^note: execution policy is Restricted' <<< "$log"
+    log=$(policy Enable-LocalScript Process=Bypass,CurrentUser=RemoteSigned)
+    check "install.ps1: already RemoteSigned: says nothing" test "$log" = 'CurrentUser: RemoteSigned'
+    check "install.ps1: runs Enable-LocalScript"   grep -q '^ *Enable-LocalScript |' "$root/install.ps1"
 fi
 
 echo "$pass passed, $fail failed"

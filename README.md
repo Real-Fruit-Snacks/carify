@@ -127,7 +127,7 @@ The four test clips are ffmpeg's `testsrc2` picture with a sine tone: three each
 2. Video is copied when it is H.264, `yuv420p`, Baseline/Main/High profile, level 4.1 or lower, and fits 1280×720. Otherwise it is re-encoded with `libx264 -preset veryfast -crf 20 -profile:v high -level:v 4.1` and scaled down to fit the box, aspect ratio kept, in limited (TV) range so a full-range phone clip isn't re-encoded again next time. Nothing is scaled up.
 3. Audio is copied when it is AAC with two channels or fewer. Otherwise it becomes AAC stereo at 160 kbps. A file with no audio track is converted silent, with a warning.
 4. Only those two streams are kept: subtitles, attachments, extra audio tracks and data streams are dropped. Metadata such as the title is kept.
-5. The MP4 is written with `-movflags +faststart` to a temporary `.<name>.part` file beside the output and renamed when ffmpeg finishes, so a cancelled run leaves nothing half-written. A second carify writing the same output at the same time stops instead. The input file is never changed, even under another spelling of its name, and an output name that is a folder is refused.
+5. The MP4 is written with `-movflags +faststart` to a temporary `.<name>.part` file beside the output and renamed when ffmpeg finishes, so a cancelled run leaves nothing half-written. Two runs writing the same output at once each have their own `.part`; without `--force`, the one that finishes second stops instead of replacing the other's file. The input file is never changed, even under another spelling of its name, and an output name that is a folder is refused.
 6. If a drive whose volume label is exactly **MOVIES** is mounted, the file is copied onto it, replacing a file of the same name there: on Linux at `/run/media/$USER/MOVIES`, `/media/$USER/MOVIES` or `/media/MOVIES`, on macOS at `/Volumes/MOVIES`, on Windows any drive with that label. With none mounted, carify stops after writing the file. A file converted straight onto the stick stays where it is. Set the label once (Files or Disks on Linux, Disk Utility on macOS, Rename in Explorer on Windows) and you never drag files again.
 
 ## What's in it
@@ -144,7 +144,7 @@ The four test clips are ffmpeg's `testsrc2` picture with a sine tone: three each
 
 ## Tested on
 
-- Ubuntu 24.04 · bash 5.2 · ffmpeg 6.1.1 (all 80 checks `tests/run.sh` runs for the bash script)
+- Ubuntu 24.04 · bash 5.2 · ffmpeg 6.1.1 (all 76 checks `tests/run.sh` runs for the bash script)
 - CI on every push: Ubuntu (bash, PowerShell 7), macOS (bash 5 and the system `/bin/bash` 3.2), Windows (PowerShell 7 and Windows PowerShell 5.1)
 - *Not* tested: a list of head units by model year. The limits above are the common denominator that has worked across Uconnect generations, not a published spec. If a file played or failed on your car, [an issue](https://github.com/Real-Fruit-Snacks/carify/issues) saying which model year and head unit, with carify's output, is the data this project is short of.
 

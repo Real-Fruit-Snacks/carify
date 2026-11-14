@@ -29,6 +29,21 @@
         }
         'Undefined'
     }
+    # Lets local scripts run for this user if the saved policy doesn't, and says what it did.
+    function Enable-LocalScript {
+        $policy = Get-SavedExecutionPolicy
+        if ($policy -eq 'AllSigned') { return 'note: execution policy is AllSigned; carify.ps1 is not signed and will not run' }
+        if ($policy -notin 'Restricted', 'Undefined') { return }
+        $why = $null
+        try { Set-ExecutionPolicy -Scope CurrentUser RemoteSigned -Force }
+        catch { $why = $_.Exception.Message }
+        # Under -ExecutionPolicy Bypass, Set-ExecutionPolicy saves the policy and then reports that
+        # this process's Bypass overrides it, so what counts is what was saved. Group Policy wins.
+        $now = Get-SavedExecutionPolicy
+        $was = if ($policy -eq 'Undefined') { 'none was set' } else { "was $policy" }
+        if ($now -eq 'RemoteSigned') { "set execution policy to RemoteSigned for your user ($was) so local scripts can run" }
+        else { "note: execution policy is $now and could not be changed: $why" }
+    }
 
     New-Item -ItemType Directory -Force -Path $bin | Out-Null
     $dest = Join-Path $bin 'carify.ps1'
@@ -57,17 +72,7 @@
         }
         if (($env:Path -split ';') -notcontains $bin) { $env:Path = "$env:Path;$bin" }
 
-        $policy = Get-SavedExecutionPolicy
-        if ($policy -in 'Restricted', 'Undefined') {
-            try {
-                Set-ExecutionPolicy -Scope CurrentUser RemoteSigned -Force
-                Write-Host "set execution policy to RemoteSigned for your user (was $policy) so local scripts can run"
-            }
-            catch { Write-Host "note: execution policy is $policy and could not be changed: $($_.Exception.Message)" }
-        }
-        elseif ($policy -eq 'AllSigned') {
-            Write-Host 'note: execution policy is AllSigned; carify.ps1 is not signed and will not run'
-        }
+        Enable-LocalScript | ForEach-Object { Write-Host $_ }
     }
     elseif ((($env:PATH -split ':') -notcontains $bin)) {
         Write-Host "note: $bin is not on PATH"

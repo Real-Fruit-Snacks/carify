@@ -57,8 +57,9 @@ code() { cat "$logs/$1.rc"; }
 # the probe, plan and warning lines of a run's stderr
 planned() { grep -E '^(probe|video|audio|warn) ' "$logs/$1.err"; }
 errors() { grep -E '^error ' "$logs/$1.err"; }
-# stdout with each file: argument cut down to its file name (each script spells the folder its own way)
-args() { sed -E 's#^file:.*[/\\]#file:#' "$logs/$1.out"; }
+# stdout with each file: argument cut down to its file name (each script spells the folder its own way),
+# and the run's process ID taken out of the temp file's name (.ok-car.mp4.1234.part)
+args() { sed -E 's#^file:.*[/\\]#file:#; s#\.[0-9]+\.part$#.part#' "$logs/$1.out"; }
 # the stdout lines between -map 0:V:0 and -sn
 between() { awk '$0 == "-sn" { f = 0 } f; $0 == "0:V:0" { f = 1 }' "$logs/$1.out"; }
 before_sn() { awk '$0 == "-sn" { print prev; exit } { prev = $0 }' "$logs/$1.out"; }
@@ -72,7 +73,9 @@ folder_of() {
         *) echo . ;;
     esac
 }
-name_of() { sed -E 's#^.*[/\\]##' <<< "$(path_of "$1")"; }
+name_of() { sed -E 's#^.*[/\\]##; s#\.[0-9]+\.part$#.part#' <<< "$(path_of "$1")"; }
+# no_part <output>: no hidden temp file of any run beside <output>
+no_part() { local p=("$(dirname -- "$1")/.$(basename -- "$1")".*part); [[ ! -e "${p[0]}" ]]; }
 lines() { printf '%s\n' "$@"; }
 empty_dir() { [[ -d "$1" && -z "$(ls -A "$1")" ]]; }
 
@@ -150,7 +153,7 @@ check "--max-height 1080 full-hd.mp4: video copy" eval '
     [[ $(code fhd_first) -eq 0 ]] && grep -Fxq "video  copy" "$logs/fhd_first.err"'
 check "--dry-run before or after the other options: same output" eval '
     [[ $(code fhd_first) -eq 0 && $(code fhd_last) -eq 0 ]] && grep -Fxq "video  copy" "$logs/fhd_last.err" &&
-    cmp -s "$logs/fhd_first.out" "$logs/fhd_last.out" && cmp -s "$logs/fhd_first.err" "$logs/fhd_last.err"'
+    [[ "$(args fhd_first)" == "$(args fhd_last)" ]] && cmp -s "$logs/fhd_first.err" "$logs/fhd_last.err"'
 
 check "ok.mp4: stdout is the ffmpeg command, one argument per line" eval '
     [[ $(code ok) -eq 0 ]] && [[ "$(args ok)" == "$want_ok" ]]'
@@ -168,7 +171,7 @@ check "name with spaces: input is one file: line" eval '
 check "dry run: no output file written" eval '
     [[ $(code a3) -eq 0 ]] && grep -Fxq ffmpeg "$logs/a3.out" && test ! -e a3/ok-car.mp4'
 check "dry run: no hidden .part file written" eval '
-    [[ $(code a3) -eq 0 ]] && grep -Fxq ffmpeg "$logs/a3.out" && test ! -e a3/.ok-car.mp4.part'
+    [[ $(code a3) -eq 0 ]] && grep -Fxq ffmpeg "$logs/a3.out" && no_part a3/ok-car.mp4'
 check "dry run: nothing copied to CARIFY_USB_DIR without --no-usb" eval '
     [[ $(code a3) -eq 0 ]] && grep -Fxq ffmpeg "$logs/a3.out" && empty_dir a3/usb'
 check "dry run with an output name: no out.mp4" eval '
@@ -200,7 +203,7 @@ check "existing output with --force: plan printed, exit 0" eval '
 check "existing output with --force: left unchanged" eval '
     [[ $(code exists_force) -eq 0 ]] && cmp -s exists/ok-car.mp4 "$logs/ok-car.mp4.before"'
 check "unreadable input: fails as a normal run does, nothing written" eval '
-    [[ $(code broken) -ne 0 ]] && test ! -e broken-car.mp4 && test ! -e .broken-car.mp4.part &&
+    [[ $(code broken) -ne 0 ]] && test ! -e broken-car.mp4 && no_part broken-car.mp4 &&
     [[ -n "$(errors broken_real)" ]] && [[ "$(errors broken)" == "$(errors broken_real)" ]]'
 
 help_lists_dry_run() {
