@@ -1,5 +1,32 @@
 # Changelog
 
+## Unreleased
+
+Added
+- `--dry-run` / `-DryRun`: probe the file and print the plan and the exact ffmpeg command, one argument per line, without converting, writing a file or copying to the stick. A missing input or an existing output without `--force` still fails as in a normal run.
+
+Fixed
+- PowerShell: `-Force` onto an output that couldn't be replaced (read-only, or open in a player) said it had written the file, exited 0 and copied the old file to the stick. It now stops with the reason.
+- bash: `carify --force movie.mkv MOVIE.MKV` on a disk that ignores case (Windows, macOS) overwrote the input. The same file under another name is now refused, as an identical name already was. carify.ps1 refused it on Windows; it now refuses it on macOS too.
+- An output path that is an existing folder: carify.ps1 reported success and wrote nothing, and the bash script left a full-size `.part` file inside the folder. Both now refuse it before converting.
+- Converting a file that is already on the stick deleted the result: copying it onto itself failed, and the clean-up after a failed copy removed it. carify now sees it is already there.
+- A full-range (`yuvj420p`) source came out full range again, so carify re-encoded its own output on every run. Re-encodes are now written in limited range.
+- Two runs writing the same output at once both reported success, and only one conversion survived. The second now stops: the hidden `.part` file is created only if it isn't there, and the output is checked again once it is. A `.part` left by a run that was killed outright has to be deleted by hand; carify says which.
+- `install.ps1` run as `powershell -ExecutionPolicy Bypass -File .\install.ps1`, the offline route, never set the execution policy it promised: it read the policy of its own process, which `-ExecutionPolicy Bypass` sets to Bypass. It now reads the policy saved for the user or the machine, so on a Restricted machine `carify` runs afterwards.
+- bash: options after the file names, such as `carify movie.mkv --no-usb`, were taken as the output name. They are now options, as in carify.ps1; after `--` everything is a file name.
+- bash under Git Bash on Windows: ffprobe's CRLF line ends made every file look 99999x99999, so everything was re-encoded. The line ends are now stripped.
+
+Tests
+- `tests/run.sh` has checks for each fix above, and more for carify.ps1: the MOVIES drive search and the FAT32 4 GB limit (with `Get-CimInstance` and the output's size stood in for), colour on a console, the size shown, a failed copy's reason, the help syntax and more. `install.ps1`'s policy is checked by running only its policy function against made-up scopes, so nothing is changed.
+- `tests/dry-run.sh` checks the dry run, and CI runs it on every target.
+- `tests/run.sh` passes from Git Bash on Windows: the faststart check falls back to the `py` launcher when `python3` and `python` are the Store's stubs, and the `install.sh` checks give curl a `file:///C:/...` URL.
+
+Docs
+- README: who it's for first, an Install section per system with what each installer changes and how to undo it, offline steps with ffmpeg, how to run either script from a clone, then usage and the details.
+- CONTRIBUTING lists everything the tests need and the Windows PowerShell 5.1 target.
+- The README cluster's ghost needles, where the input was, are drawn at .8 opacity instead of .5, so they can be seen on both themes.
+- Project page: the cluster is on the first screen at every width, and the four recorded files are a switch strip along the cluster's plate.
+
 ## v1.2.0
 
 `carify` and `carify.ps1` are unchanged apart from the version number. This release adds downloads for a machine with no network.
