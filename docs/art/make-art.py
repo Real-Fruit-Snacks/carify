@@ -319,10 +319,10 @@ def build_svg(theme, runs, recorded):
         o.append(text(d["title"].upper(), cx, CY - 46, 14, "condb", c["mute"], ls=0.16, anchor="middle"))
 
     # ghost needles where the input was, then the live needles
-    o.append(f'<polygon class="ghost-v" points="{needle_points(CX["v"], CY)}" fill="{c["rasp"]}" fill-opacity=".5" '
+    o.append(f'<polygon class="ghost-v" points="{needle_points(CX["v"], CY)}" fill="{c["rasp"]}" fill-opacity=".8" '
              f'transform="rotate({angle("v", a["vin"]):.2f} {CX["v"]} {CY})"/>')
     for cls, run in (("a-ghost-a", a), ("b-ghost-a", b)):
-        o.append(f'<polygon class="{cls}" points="{needle_points(CX["a"], CY)}" fill="{c["rasp"]}" fill-opacity=".5" '
+        o.append(f'<polygon class="{cls}" points="{needle_points(CX["a"], CY)}" fill="{c["rasp"]}" fill-opacity=".8" '
                  f'transform="rotate({angle("a", run["ain"]):.2f} {CX["a"]} {CY})"/>')
     o.append(f'<g{glow}><polygon class="nv" points="{needle_points(CX["v"], CY)}" fill="{c["ember"]}"/>'
              f'<polygon class="na" points="{needle_points(CX["a"], CY)}" fill="{c["ember"]}"/></g>')
