@@ -94,6 +94,8 @@ gen hdr.mkv     -map 0:v -map 1:a -vf setparams=color_primaries=bt2020:color_trc
                 -c:v libx265 -pix_fmt yuv420p10le \
                 -x265-params log-level=error:colorprim=bt2020:transfer=smpte2084:colormatrix=bt2020nc -c:a aac
 gen hi422.mkv   -map 0:v -map 1:a -c:v libx264 -pix_fmt yuv422p -c:a aac -ac 2
+# full range ("JPEG") H.264, as some phones and screen recorders write it
+gen fullrange.mp4 -map 0:v -map 1:a -c:v libx264 -profile:v high -pix_fmt yuvj420p -c:a aac -ac 2
 # long enough to re-encode that a second run can start while it does
 SIZE=1920x1080 DUR=30 gen long.mp4 -map 0:v -map 1:a -c:v libx264 -preset ultrafast -crf 30 -pix_fmt yuv420p \
                 -c:a aac -ac 2
@@ -199,6 +201,10 @@ log=$(run --no-usb --force ok.mp4 2>&1)
 check "SDR source: no HDR warning"           not grep -q 'HDR source' <<< "$log"
 run --no-usb hi422.mkv >/dev/null 2>&1
 check "4:2:2: re-encoded to 4:2:0"           test "$(f hi422-car.mp4 v:0 pix_fmt)" = yuv420p
+run --no-usb fullrange.mp4 >/dev/null 2>&1
+check "full range: re-encoded to limited range" test "$(f fullrange-car.mp4 v:0 pix_fmt)" = yuv420p
+log=$(run --no-usb fullrange-car.mp4 2>&1)
+check "full range: the output is copied next time" grep -q 'video  copy' <<< "$log"
 run --no-usb mpeg2-main.mp4 >/dev/null 2>&1
 check "mpeg2 4:2:0 Main: re-encoded to h264" test "$(f mpeg2-main-car.mp4 v:0 codec_name)" = h264
 run --no-usb ac3-stereo.mp4 >/dev/null 2>&1
