@@ -78,7 +78,8 @@ while [[ $# -gt 0 ]]; do
         --max-height) [[ $# -ge 2 ]] || die "--max-height needs a value"; max_h="$2"; shift 2 ;;
         --max-height=*) max_h="${1#*=}"; shift ;;
         --) shift; while [[ $# -gt 0 ]]; do files+=("$1"); shift; done ;;
-        -?*) printf 'unknown option: %s\n' "$1" >&2; usage >&2; exit 1 ;;
+        -?*) printf 'unknown option: %s (a file name starting with - goes after --)\n' "$1" >&2
+             usage >&2; exit 1 ;;
         *) files+=("$1"); shift ;;
     esac
 done
@@ -104,12 +105,9 @@ done
 [[ -f "$in" ]] || die "file not found: $in"
 [[ -d "$(dirname -- "$out")" ]] || die "output folder does not exist: $(dirname -- "$out")"
 
-# Absolute path without needing GNU realpath (macOS ships bash 3.2 and no -f).
-abspath() { local d; d=$(cd -- "$(dirname -- "$1")" && pwd -P) && printf '%s/%s\n' "$d" "$(basename -- "$1")"; }
-# -ef also catches the same file under another name: MOVIE.MKV on a disk that ignores case.
-if [[ "$(abspath "$in")" == "$(abspath "$out")" || "$in" -ef "$out" ]]; then
-    die "output would overwrite the input: $out"
-fi
+# -ef: the same file, whatever the name says: ./movie.mkv, a link, or
+# MOVIE.MKV on a disk that ignores case.
+[[ ! "$in" -ef "$out" ]] || die "output would overwrite the input: $out"
 [[ ! -d "$out" ]] || die "output is a folder, not a file: $out"
 if [[ -e "$out" && $force -eq 0 ]]; then
     die "output already exists: $out (use --force to overwrite)"
@@ -183,11 +181,10 @@ fi
 
 # --- encode --------------------------------------------------------------
 # Write to a hidden temp file and rename, so an interrupted run never leaves
-# a half-written movie-car.mp4 behind. The temp file is created only if it
-# isn't there yet (noclobber opens it with O_EXCL), so a second carify writing
-# the same output stops instead of both reporting success.
+# a half-written movie-car.mp4 behind. The temp file's name has this run's
+# process ID, so two runs writing the same output never share one.
 out_dir=$(dirname -- "$out")
-tmp="$out_dir/.$(basename -- "$out").part"
+tmp="$out_dir/.$(basename -- "$out").$$.part"
 cmd=(ffmpeg -hide_banner -nostdin -loglevel warning -stats -y -i "file:$in"
      -map 0:V:0 "${vopts[@]}" "${aopts[@]}" -sn -dn -map_metadata 0
      -movflags +faststart -f mp4 "file:$tmp")
@@ -195,19 +192,16 @@ if [[ $dry -eq 1 ]]; then
     printf '%s\n' "${cmd[@]}"
     exit 0
 fi
-if ! (set -o noclobber; : > "$tmp") 2>/dev/null; then
-    [[ -e "$tmp" ]] && die "another carify is writing $out (if none is running, delete $tmp)"
-    die "cannot write to $out_dir"
-fi
 trap 'rm -f -- "$tmp"' EXIT
 trap 'exit 130' INT TERM
-# Checked again: another run may have written it while this one probed.
-if [[ -e "$out" && $force -eq 0 ]]; then
-    die "output already exists: $out (use --force to overwrite)"
-fi
+trap 'exit 129' HUP
 
 if ! "${cmd[@]}"; then
     die "ffmpeg failed"
+fi
+# Checked again: another run may have written it while this one converted.
+if [[ -e "$out" && $force -eq 0 ]]; then
+    die "output already exists: $out (another carify wrote it while this one converted)"
 fi
 mv -f -- "$tmp" "$out" || die "could not replace $out"
 

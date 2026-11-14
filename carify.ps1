@@ -104,11 +104,23 @@ if (-not [IO.Directory]::Exists($outDir)) { Exit-Carify "output folder does not 
 
 $isWin = $env:OS -eq 'Windows_NT'
 $cmp = if ($isWin) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
-# macOS disks ignore case too: an existing MOVIE.MKV with the input's time stamp is the input.
-$sameFile = [string]::Equals($In, $Out, $cmp) -or ([IO.File]::Exists($Out) -and
-    [string]::Equals($In, $Out, [StringComparison]::OrdinalIgnoreCase) -and
-    [IO.File]::GetLastWriteTimeUtc($In) -eq [IO.File]::GetLastWriteTimeUtc($Out))
-if ($sameFile) { Exit-Carify "output would overwrite the input: $Out" }
+# Whether two paths name one file, as bash's -ef says: a link, an 8.3 short name, or another case
+# of the name on a disk that ignores it (macOS too). .NET has no file IDs to compare, so two files
+# with the same time stamp are one if moving the second's time stamp moves the first's. It is put
+# back straight after.
+function Test-SameFile([string]$A, [string]$B) {
+    if ([string]::Equals($A, $B, $cmp)) { return $true }
+    if (-not [IO.File]::Exists($A) -or -not [IO.File]::Exists($B)) { return $false }
+    $t = [IO.File]::GetLastWriteTimeUtc($B)
+    if ([IO.File]::GetLastWriteTimeUtc($A) -ne $t) { return $false }
+    try {
+        [IO.File]::SetLastWriteTimeUtc($B, $t.AddSeconds(-2))
+        [IO.File]::GetLastWriteTimeUtc($A) -ne $t
+    }
+    catch { [string]::Equals($A, $B, [StringComparison]::OrdinalIgnoreCase) }
+    finally { try { [IO.File]::SetLastWriteTimeUtc($B, $t) } catch { $null = $_ } }
+}
+if (Test-SameFile $In $Out) { Exit-Carify "output would overwrite the input: $Out" }
 if ([IO.Directory]::Exists($Out)) { Exit-Carify "output is a folder, not a file: $Out" }
 if ([IO.File]::Exists($Out) -and -not $Force) {
     Exit-Carify "output already exists: $Out (use -Force to overwrite)"
@@ -184,31 +196,29 @@ else {
 
 # --- encode ----------------------------------------------------------------
 # Write to a hidden temp file and rename, so an interrupted run never leaves
-# a half-written movie-car.mp4 behind. finally runs on Ctrl+C too. The temp file
-# is created only if it isn't there yet, so a second carify writing the same
-# output stops instead of both reporting success.
-$tmp = [IO.Path]::Combine($outDir, '.' + [IO.Path]::GetFileName($Out) + '.part')
+# a half-written movie-car.mp4 behind. finally runs on Ctrl+C too. The temp file's
+# name has this run's process ID, so two runs writing the same output never share one.
+$tmp = [IO.Path]::Combine($outDir, '.' + [IO.Path]::GetFileName($Out) + ".$PID.part")
 $ffArgs = @('-hide_banner', '-nostdin', '-loglevel', 'warning', '-stats', '-y', '-i', "file:$In",
     '-map', '0:V:0') + $vopts + $aopts + @('-sn', '-dn', '-map_metadata', '0',
     '-movflags', '+faststart', '-f', 'mp4', "file:$tmp")
 if ($DryRun) { Write-Output (@('ffmpeg') + $ffArgs); exit 0 }
-try { [IO.File]::Open($tmp, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write).Dispose() }
-catch {
-    if ([IO.File]::Exists($tmp)) { Exit-Carify "another carify is writing $Out (if none is running, delete $tmp)" }
-    Exit-Carify "cannot write to ${outDir}: $(Get-Reason $_)"
-}
 try {
-    # Checked again: another run may have written it while this one probed.
-    if ([IO.File]::Exists($Out) -and -not $Force) { Exit-Carify "output already exists: $Out (use -Force to overwrite)" }
     & ffmpeg @ffArgs
     if ($LASTEXITCODE -ne 0) { Exit-Carify "ffmpeg failed (exit $LASTEXITCODE)" $LASTEXITCODE }
     # A .NET error here doesn't stop the script by itself: without the catch, a read-only output or
     # one a player holds open would be reported as written and the old file copied to the stick.
+    # Without -Force, Move refuses an output another run wrote while this one converted.
     try {
-        if ([IO.File]::Exists($Out)) { [IO.File]::Delete($Out) }
+        if ($Force -and [IO.File]::Exists($Out)) { [IO.File]::Delete($Out) }
         [IO.File]::Move($tmp, $Out)
     }
-    catch { Exit-Carify "could not replace ${Out}: $(Get-Reason $_)" }
+    catch {
+        if (-not $Force -and [IO.File]::Exists($Out)) {
+            Exit-Carify "output already exists: $Out (another carify wrote it while this one converted)"
+        }
+        Exit-Carify "could not replace ${Out}: $(Get-Reason $_)"
+    }
 }
 finally {
     if ([IO.File]::Exists($tmp)) { try { [IO.File]::Delete($tmp) } catch { $null = $_ } }
@@ -241,7 +251,7 @@ else {
 if (-not $dest) { exit 0 }
 
 $target = [IO.Path]::Combine($dest, [IO.Path]::GetFileName($Out))
-if ([string]::Equals((Get-FullPath $target), $Out, $cmp)) {
+if (Test-SameFile $Out $target) {
     # Written straight onto the stick: copying it onto itself would fail and the
     # clean-up after a failed copy would delete it.
     Write-Status 'usb' "already on the stick: $dest"
