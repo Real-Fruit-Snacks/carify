@@ -21,7 +21,7 @@ jobs:
           curl -fsSL --retry 3 "https://github.com/koalaman/shellcheck/releases/download/v$SHELLCHECK_VERSION/shellcheck-v$SHELLCHECK_VERSION.linux.x86_64.tar.xz" | tar -xJ -C "$RUNNER_TEMP"
           sc="$RUNNER_TEMP/shellcheck-v$SHELLCHECK_VERSION/shellcheck"
           "$sc" --version
-          "$sc" carify install.sh tests/run.sh
+          "$sc" carify install.sh tests/run.sh tests/dry-run.sh
       - name: PSScriptAnalyzer
         shell: pwsh
         run: |
@@ -77,12 +77,17 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install ffmpeg
       - run: tests/run.sh bash
+      - run: tests/dry-run.sh bash
       - name: macOS /bin/bash 3.2
         if: runner.os == 'macOS'
-        run: CARIFY_BASH=/bin/bash /bin/bash tests/run.sh bash
+        run: |
+          CARIFY_BASH=/bin/bash /bin/bash tests/run.sh bash
+          CARIFY_BASH=/bin/bash /bin/bash tests/dry-run.sh bash
       - name: pwsh on Linux
         if: runner.os == 'Linux'
-        run: tests/run.sh pwsh
+        run: |
+          tests/run.sh pwsh
+          tests/dry-run.sh pwsh
 
   windows:
     runs-on: windows-latest
@@ -97,9 +102,13 @@ jobs:
       - name: ffmpeg
         run: choco install ffmpeg --version "$FFMPEG_CHOCO_VERSION" -y --no-progress
       - name: PowerShell 7
-        run: tests/run.sh pwsh
+        run: |
+          tests/run.sh pwsh
+          tests/dry-run.sh pwsh
       - name: Windows PowerShell 5.1
-        run: tests/run.sh powershell
+        run: |
+          tests/run.sh powershell
+          tests/dry-run.sh powershell
 
   art:
     # The README cluster and the project page replay real carify runs from docs/art/runs.json.
