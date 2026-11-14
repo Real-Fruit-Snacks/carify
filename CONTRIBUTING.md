@@ -5,12 +5,13 @@ Bug reports and pull requests are welcome.
 - `carify` and `carify.ps1` must behave the same. A change to one needs the matching change to the other.
 - `carify` has to run on macOS's `/bin/bash` 3.2: no associative arrays, no `mapfile`, no `${var,,}`.
 - `carify.ps1` has to run on Windows PowerShell 5.1 and stay ASCII.
-- Run the tests before opening a PR. They need ffmpeg with libx264 and libx265.
+- Run the tests before opening a PR. They need ffmpeg with libx264 and libx265, Python 3 (the faststart check reads the MP4 with it), and [ShellCheck](https://www.shellcheck.net/) for the lint. `tests/run.sh pwsh` needs PowerShell 7 (`pwsh`); without it most checks fail instead of the run saying `pwsh` is missing. `tests/run.sh powershell` tests Windows PowerShell 5.1. On Windows, run these from Git Bash.
 
 ```sh
 shellcheck carify install.sh tests/run.sh
 tests/run.sh bash
 tests/run.sh pwsh
+tests/run.sh powershell   # Windows only: Windows PowerShell 5.1
 ```
 
 - A new behaviour gets a check in `tests/run.sh`.
