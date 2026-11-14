@@ -34,7 +34,7 @@
   <div class="wrap">
     <a class="mark" href="./" aria-label="carify, top of the page">carify</a>
     <nav aria-label="Page">
-      <a href="#install">Install</a>
+      <a class="keep" href="#install">Install</a>
       <a href="#how">The limits</a>
       <a href="#runs">Test runs</a>
       <a href="#use">Usage</a>
@@ -46,23 +46,21 @@
 
 <main>
 <div class="hero">
-  <div class="wrap">
-    <div class="hero-head">
-      <h1>Convert video for Uconnect USB playback</h1>
-        <p class="sub">Uconnect head units in Chrysler, Jeep, Dodge and Ram vehicles play MP4 files from a USB stick, but only 8-bit H.264 at 720p or smaller with AAC stereo sound. carify checks each stream against that line, re-encodes only what's over it, and copies the result onto a stick labelled MOVIES.</p>
+  <div class="wrap hero-grid">
+    <h1>Convert video for Uconnect USB playback</h1>
+    <p class="sub">Uconnect head units in Chrysler, Jeep, Dodge and Ram vehicles play MP4 files from a USB stick, but only 8-bit H.264 at 720p or smaller with AAC stereo sound. carify checks each stream against that line, re-encodes only what's over it, and copies the result onto a stick labelled MOVIES.</p>
 
-        <div class="install" id="install">
-          <div class="install-bar">
-          <div class="tabs" role="tablist" aria-label="Your system">
-            <button type="button" role="tab" id="tab-sh" aria-controls="pane-sh" aria-selected="true">macOS · Linux</button>
-            <button type="button" role="tab" id="tab-ps" aria-controls="pane-ps" aria-selected="false" tabindex="-1">Windows</button>
-          </div>
-          <button class="copy" type="button" id="copy" data-copy="curl -fsSL https://raw.githubusercontent.com/Real-Fruit-Snacks/carify/main/install.sh | sh">Copy</button>
-          </div>
-          <div class="pane" role="tabpanel" id="pane-sh" aria-labelledby="tab-sh"><code>curl -fsSL https://raw.githubusercontent.com/Real-Fruit-Snacks/carify/main/install.sh | sh</code></div>
-          <div class="pane" role="tabpanel" id="pane-ps" aria-labelledby="tab-ps" hidden><code>irm https://raw.githubusercontent.com/Real-Fruit-Snacks/carify/main/install.ps1 | iex</code></div>
-          <p class="install-note">Needs <a href="https://ffmpeg.org/">ffmpeg</a> on your PATH: <code>winget install Gyan.FFmpeg</code>, <code>sudo apt install ffmpeg</code>, <code>sudo dnf install ffmpeg</code> or <code>brew install ffmpeg</code>. Then <code>carify movie.mkv</code>.</p>
+    <div class="install" id="install">
+      <div class="install-bar">
+        <div class="tabs" role="tablist" aria-label="Your system">
+          <button type="button" role="tab" id="tab-sh" aria-controls="pane-sh" aria-selected="true">macOS · Linux</button>
+          <button type="button" role="tab" id="tab-ps" aria-controls="pane-ps" aria-selected="false" tabindex="-1">Windows</button>
         </div>
+        <button class="copy" type="button" id="copy" data-copy="curl -fsSL https://raw.githubusercontent.com/Real-Fruit-Snacks/carify/main/install.sh | sh">Copy</button>
+      </div>
+      <div class="pane" role="tabpanel" id="pane-sh" aria-labelledby="tab-sh"><code>curl -fsSL https://raw.githubusercontent.com/Real-Fruit-Snacks/carify/main/install.sh | sh</code></div>
+      <div class="pane" role="tabpanel" id="pane-ps" aria-labelledby="tab-ps" hidden><code>irm https://raw.githubusercontent.com/Real-Fruit-Snacks/carify/main/install.ps1 | iex</code></div>
+      <p class="install-note">Needs <a href="https://ffmpeg.org/">ffmpeg</a> on your PATH: <code>winget install Gyan.FFmpeg</code>, <code>sudo apt install ffmpeg</code>, <code>sudo dnf install ffmpeg</code> or <code>brew install ffmpeg</code>. Then <code>carify movie.mkv</code>.</p>
     </div>
 
     <figure class="cluster" id="cluster" aria-labelledby="cluster-cap">
