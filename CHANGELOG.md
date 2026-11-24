@@ -1,9 +1,12 @@
 # Changelog
 
-## Unreleased
+## v1.3.0
 
 Added
 - `--dry-run` / `-DryRun`: probe the file and print the plan and the exact ffmpeg command, one argument per line, without converting, writing a file or copying to the stick. A missing input or an existing output without `--force` still fails as in a normal run.
+
+Changed
+- Terminal output in `carify` and `carify.ps1` uses the Cyclorama Dawn `v2.1.0` palette (Maritime Beacon orange tags, Glacial Steel info, Mint ok, Amber warn, Signal Crimson errors), keeping `NO_COLOR` and non-TTY plain output intact.
 
 Fixed
 - PowerShell: `-Force` onto an output that couldn't be replaced (read-only, or open in a player) said it had written the file, exited 0 and copied the old file to the stick. It now stops with the reason.

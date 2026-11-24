@@ -46,7 +46,7 @@ param(
     [Parameter(ParameterSetName = 'Version', Mandatory = $true)][switch]$Version
 )
 
-$CarifyVersion = '1.2.0'
+$CarifyVersion = '1.3.0'
 if ($Version) { Write-Output "carify $CarifyVersion"; exit 0 }
 
 # --- output ----------------------------------------------------------------
