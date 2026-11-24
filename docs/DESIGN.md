@@ -2,7 +2,7 @@
 
 ## Concept
 
-carify's whole job is fitting a video under a line: the head unit plays 8-bit H.264 at 720p or smaller with AAC stereo, and anything over that is re-encoded down to it. So the page is a car's instrument cluster, and the head unit's limits are the Signal Crimson redlines. Two dials, frame height and audio channels, flank a centre screen, the way a speedometer and a rev counter flank a cluster's info display. A file's real stream values sit on the dials; carify's run brings each needle back under its redline, or leaves it where it is when it already fits.
+carify's whole job is fitting a video under a line: the head unit plays 8-bit H.264 at 720p or smaller with AAC stereo, and anything over that is re-encoded down to it. So the page and README cluster use a two-bay wide-dash instrument deck: **Video Stream** (frame height, Signal Crimson redline above 720) and **Audio Stream** (channels, redline above 2) sit side by side, each pairing its radial gauge with structured `IN → OUT` codec telemetry and a sharp `[RE-ENCODE]` / `[COPY]` action token. A full-width pipeline progress rail and unbroken recorded terminal output strip sit cleanly beneath the gauges (never squeezed between them). A file's real stream values sit on the dials; carify's run brings each needle back under its redline, leaving a Signal Crimson ghost needle where the input started, or leaves it where it is when it already fits.
 
 ## Brand System
 

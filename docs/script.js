@@ -1,5 +1,5 @@
 // carify page: Cyclorama Dawn v2.1.0 theme switch (Dark LX 263 default), install tabs,
-// copy buttons with semantic toasts, and the instrument cluster replaying recorded runs.
+// copy buttons with semantic toasts, and the Wide-Dash 2-Bay instrument cluster.
 (function () {
   var root = document.documentElement;
   var still = matchMedia('(prefers-reduced-motion: reduce)');
@@ -87,9 +87,9 @@
       }
     };
     close.addEventListener('click', remove);
-    var timer = setTimeout(function tick() {
+    setTimeout(function tick() {
       if (item.contains(document.activeElement)) {
-        timer = setTimeout(tick, 1200);
+        setTimeout(tick, 1200);
         return;
       }
       remove();
@@ -131,33 +131,101 @@
     });
   });
 
-  // ---- the instrument cluster ----
+  // ---- Wide-Dash 2-Bay instrument cluster ----
   var data = window.CARIFY_RUNS;
   if (!data || !$('term')) return;
   var runs = {};
   data.runs.forEach(function (r) { runs[r.name] = r; });
-  var dial = { v: $('dial-v'), a: $('dial-a') }, term = $('term').firstElementChild, bar = $('bar'), usb = $('usb');
-  var files = [].slice.call(document.querySelectorAll('.file')), timers = [];
+
+  var dial = { v: $('dial-v'), a: $('dial-a') };
+  var term = $('term').firstElementChild;
+  var bar = $('bar');
+  var usb = $('usb');
+  var cmdTyped = $('cmd-typed');
+  var pipeMsg = $('pipe-msg');
+  var pipeTag = $('pipe-tag');
+  var pipeText = $('pipe-text');
+  var pipeStat = $('pipe-stat');
+  var ctrl = $('cluster-ctrl');
+  var files = [].slice.call(document.querySelectorAll('.file'));
+
+  var activeRun = runs['road-trip'];
+  var queue = [];
+  var running = false;
+  var paused = false;
+  var startStamp = 0;
+  var elapsedMs = 0;
 
   function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
   function fmt(v) { return String(v); }
-  function ang(k, v) { var d = data.dials[k]; return -data.sweep + 2 * data.sweep * Math.min(Math.max(v, 0), d.max) / d.max; }
+  function ang(k, v) {
+    var d = data.dials[k];
+    return -data.sweep + 2 * data.sweep * Math.min(Math.max(v, 0), d.max) / d.max;
+  }
   function needle(k, deg, s, ez) {
     var el = dial[k];
-    el.style.setProperty('--t', (s == null ? 0.6 : s) + 's');
+    el.style.setProperty('--t', (s == null ? 0.55 : s) + 's');
     el.style.setProperty('--ez', ez || 'cubic-bezier(.2,.7,.2,1)');
     el.style.setProperty('--a', deg.toFixed(2) + 'deg');
   }
-  function hub(k, value, words, from) {
-    var el = dial[k], s = value == null ? 'off' : value <= data.dials[k].limit ? 'fits' : 'over';
-    var val = el.querySelector('.hub-val'), st = el.querySelector('.hub-state');
-    val.textContent = value == null ? '' : fmt(value); val.dataset.s = s;
-    st.textContent = value == null ? '' : s === 'fits' ? 'Fits' : 'Over'; st.dataset.s = s;
-    el.querySelector('.hub-codec').textContent = words || '';
+  function hub(k, value, from) {
+    var el = dial[k];
+    var s = value == null ? 'off' : value <= data.dials[k].limit ? 'fits' : 'over';
+    var val = el.querySelector('.hub-val');
+    var st = el.querySelector('.hub-state');
+    val.textContent = value == null ? '' : fmt(value);
+    val.dataset.s = s;
+    st.textContent = value == null ? '' : s === 'fits' ? 'Fits' : 'Over';
+    st.dataset.s = s;
     var moved = from != null && from !== value;
     el.querySelector('.hub-from').textContent = moved ? 'from ' + fmt(from) : '';
-    if (moved) { el.style.setProperty('--g', ang(k, from).toFixed(2) + 'deg'); el.setAttribute('data-ghost', ''); }
-    else el.removeAttribute('data-ghost');
+    if (moved) {
+      el.style.setProperty('--g', ang(k, from).toFixed(2) + 'deg');
+      el.setAttribute('data-ghost', '');
+    } else {
+      el.removeAttribute('data-ghost');
+    }
+  }
+  function setSpecs(r, ready) {
+    var vAct = $('act-v'), aAct = $('act-a');
+    if (vAct) {
+      vAct.textContent = r.vact === 'copy' ? 'COPY' : 'RE-ENCODE';
+      vAct.className = 'spec-act ' + (r.vact === 'copy' ? 'is-copy' : 'is-encode');
+    }
+    if (aAct) {
+      aAct.textContent = r.aact === 'copy' ? 'COPY' : 'RE-ENCODE';
+      aAct.className = 'spec-act ' + (r.aact === 'copy' ? 'is-copy' : 'is-encode');
+    }
+    $('dim-in-v').textContent = r.vdim_in;
+    $('spec-in-v').textContent = r.vspec_in;
+    $('dim-in-a').textContent = r.adim_in;
+    $('spec-in-a').textContent = r.aspec_in;
+
+    var outV = $('out-v'), outA = $('out-a');
+    if (ready || r.vact === 'copy') {
+      outV.dataset.ready = 'true';
+      $('dim-out-v').textContent = r.vdim_out;
+      $('spec-out-v').textContent = r.vspec_out;
+    } else {
+      outV.dataset.ready = 'busy';
+      $('dim-out-v').textContent = 'target 720p';
+      $('spec-out-v').textContent = 're-encoding h264 8-bit...';
+    }
+    if (ready || r.aact === 'copy') {
+      outA.dataset.ready = 'true';
+      $('dim-out-a').textContent = r.adim_out;
+      $('spec-out-a').textContent = r.aspec_out;
+    } else {
+      outA.dataset.ready = 'busy';
+      $('dim-out-a').textContent = 'target 2 ch';
+      $('spec-out-a').textContent = 're-encoding aac 160k...';
+    }
+  }
+  function setPipe(state, tag, text, stat) {
+    pipeMsg.dataset.s = state;
+    pipeTag.textContent = tag;
+    pipeText.textContent = text;
+    pipeStat.textContent = stat;
   }
   function kind(line) {
     var label = line.slice(0, 6).trim(), rest = line.slice(6).trim();
@@ -170,7 +238,8 @@
   }
   function line(text) {
     var k = kind(text);
-    return k === 'progress' ? '<span class="l-progress">' + esc(text) + '</span>'
+    return k === 'progress'
+      ? '<span class="l-progress">' + esc(text) + '</span>'
       : '<span class="l-' + k + '"><b>' + esc(text.slice(0, 6)) + '</b>' + esc(text.slice(6)) + '</span>';
   }
   function cmd(r, typed, caret) {
@@ -189,64 +258,152 @@
     var au = r.ain === r.aout && r.awin === r.awout ? r.aout + ' channels, copied' : r.ain + ' to ' + r.aout + ' channels';
     $('cluster-say').textContent = r.file + ': video ' + v + ', ' + r.vwout + '; audio ' + au + ', ' + r.awout + '; ' + r.size + ' on the stick.';
   }
-  function finish(r) {
-    hub('v', r.vout, r.vwout, r.vin); hub('a', r.aout, r.awout, r.ain);
-    needle('v', ang('v', r.vout), 0); needle('a', ang('a', r.aout), 0);
-    term.innerHTML = [cmd(r)].concat(r.screen.map(line)).join('');
-    bar.style.setProperty('--p', 1); usb.dataset.s = 'done';
-    busy(false, r.name); tell(r);
+  function updateCtrl() {
+    if (!ctrl) return;
+    if (!running) ctrl.textContent = 'Replay';
+    else ctrl.textContent = paused ? 'Resume' : 'Pause';
   }
-  function at(ms, fn) { timers.push(setTimeout(fn, ms)); }
+  function clearQueue() {
+    queue.forEach(function (item) { if (item.tid) clearTimeout(item.tid); });
+    queue = [];
+  }
+  function scheduleAll(offset) {
+    startStamp = performance.now();
+    queue.forEach(function (item) {
+      if (item.done) return;
+      var wait = Math.max(0, item.at - offset);
+      item.tid = setTimeout(function () {
+        item.done = true;
+        item.tid = 0;
+        item.fn();
+      }, wait);
+    });
+  }
+  function finish(r) {
+    clearQueue();
+    running = false;
+    paused = false;
+    activeRun = r;
+    cmdTyped.textContent = r.cmd;
+    hub('v', r.vout, r.vin);
+    hub('a', r.aout, r.ain);
+    needle('v', ang('v', r.vout), 0);
+    needle('a', ang('a', r.aout), 0);
+    setSpecs(r, true);
+    setPipe('ok', '[ok]', 'wrote ./' + r.out + ' (' + r.size + ') · copied to /media/runner/MOVIES', r.seconds + ' s · ' + r.speed);
+    term.innerHTML = [cmd(r)].concat(r.screen.map(line)).join('');
+    bar.style.setProperty('--p', 1);
+    usb.dataset.s = 'done';
+    busy(false, r.name);
+    updateCtrl();
+    tell(r);
+  }
+  function enqueue(ms, fn) {
+    queue.push({ at: ms, fn: fn, done: false, tid: 0 });
+  }
+  function runSummary(r) {
+    if (r.vact === 'copy' && r.aact === 'copy') return 'remuxing compliant video + audio streams to MP4...';
+    if (r.vact === 'copy') return 'copying h264 video stream + re-encoding audio (aac stereo 160k)...';
+    if (r.aact === 'copy') return 're-encoding video (libx264 crf 20) + copying aac audio stream...';
+    return 're-encoding video (libx264 crf 20) + audio (aac stereo 160k)...';
+  }
 
-  function play(r, ignition) {
-    timers.forEach(clearTimeout); timers = [];
+  function play(r) {
+    clearQueue();
+    activeRun = r;
+    running = true;
+    paused = false;
+    elapsedMs = 0;
     busy(true, r.name);
-    hub('v', null); hub('a', null);
+    updateCtrl();
+
+    cmdTyped.textContent = '';
+    hub('v', r.vin);
+    hub('a', r.ain);
+    needle('v', ang('v', r.vin), 0.5);
+    needle('a', ang('a', r.ain), 0.5);
+    setSpecs(r, false);
+    setPipe('run', '[run]', runSummary(r), 'encoding...');
     usb.dataset.s = 'none';
-    bar.style.transition = 'none'; bar.style.setProperty('--p', 0); void bar.offsetWidth; bar.style.transition = '';
+    bar.style.transition = 'none';
+    bar.style.setProperty('--p', 0);
+    void bar.offsetWidth;
+    bar.style.transition = '';
     term.innerHTML = cmd(r, '', true);
-    var t0;
-    if (ignition) {
-      needle('v', -data.sweep, 0); needle('a', -data.sweep, 0);
-      at(40, function () { needle('v', data.sweep, 0.7, 'cubic-bezier(.45,0,.55,1)'); needle('a', data.sweep, 0.7, 'cubic-bezier(.45,0,.55,1)'); });
-      at(760, function () { needle('v', ang('v', r.vin), 0.7); needle('a', ang('a', r.ain), 0.7); });
-      t0 = 1500;
-    } else {
-      needle('v', ang('v', r.vin), 0.5); needle('a', ang('a', r.ain), 0.5);
-      t0 = 700;
-    }
+
+    var t0 = 580;
     for (var i = 1; i <= r.cmd.length; i++) (function (n) {
-      at(120 + n * 26, function () { term.querySelector('.typed').textContent = r.cmd.slice(0, n); });
+      enqueue(60 + n * 22, function () {
+        var partial = r.cmd.slice(0, n);
+        cmdTyped.textContent = partial;
+        var typedEl = term.querySelector('.typed');
+        if (typedEl) typedEl.textContent = partial;
+      });
     })(i);
+
     var lines = [], redraw = false;
-    r.events.forEach(function (e, i) {
-      at(t0 + e[0] * 1000, function () {
+    r.events.forEach(function (e, idx) {
+      enqueue(t0 + e[0] * 1000, function () {
         var text = e[2];
-        if (i === 0) { hub('v', r.vin, r.vwin); hub('a', r.ain, r.awin); }
-        if (redraw) lines[lines.length - 1] = text; else lines.push(text);
+        if (redraw) lines[lines.length - 1] = text;
+        else lines.push(text);
         redraw = e[1];
         term.innerHTML = [cmd(r)].concat(lines.map(line)).join('');
         var p = share(text, r);
         if (p != null) bar.style.setProperty('--p', p);
         if (/^wrote/.test(text)) {
           bar.style.setProperty('--p', 1);
-          needle('v', ang('v', r.vout), 0.6); needle('a', ang('a', r.aout), 0.6);
-          hub('v', r.vout, r.vwout, r.vin); hub('a', r.aout, r.awout, r.ain);
+          needle('v', ang('v', r.vout), 0.55);
+          needle('a', ang('a', r.aout), 0.55);
+          hub('v', r.vout, r.vin);
+          hub('a', r.aout, r.ain);
+          setSpecs(r, true);
+          setPipe('ok', '[ok]', 'wrote ./' + r.out + ' (' + r.size + ') · copied to /media/runner/MOVIES', r.seconds + ' s · ' + r.speed);
         }
         if (/^usb +copying/.test(text)) usb.dataset.s = 'copy';
         if (/^usb +done/.test(text)) usb.dataset.s = 'done';
-        if (i === r.events.length - 1) {
-          at(400, function () { term.insertAdjacentHTML('beforeend', '<span class="l-cmd"><span class="ps">$</span> <span class="caret"></span></span>'); busy(false, r.name); tell(r); });
-        }
       });
+    });
+    var endMs = t0 + (r.events.length ? r.events[r.events.length - 1][0] * 1000 : 0) + 350;
+    enqueue(endMs, function () {
+      term.insertAdjacentHTML('beforeend', '<span class="l-cmd"><span class="ps">$</span> <span class="caret"></span></span>');
+      running = false;
+      paused = false;
+      busy(false, r.name);
+      updateCtrl();
+      tell(r);
+    });
+    scheduleAll(0);
+  }
+
+  if (ctrl) {
+    ctrl.addEventListener('click', function () {
+      if (!running) {
+        if (still.matches) finish(activeRun);
+        else play(activeRun);
+        return;
+      }
+      if (!paused) {
+        paused = true;
+        elapsedMs += performance.now() - startStamp;
+        queue.forEach(function (item) { if (item.tid) { clearTimeout(item.tid); item.tid = 0; } });
+        updateCtrl();
+      } else {
+        paused = false;
+        updateCtrl();
+        scheduleAll(elapsedMs);
+      }
     });
   }
 
   files.forEach(function (f) {
     f.addEventListener('click', function () {
       var r = runs[f.dataset.run];
-      if (still.matches) finish(r); else play(r, false);
+      if (still.matches) finish(r);
+      else play(r);
     });
   });
-  if (!still.matches) play(runs['road-trip'], true);
+
+  if (still.matches) finish(runs['road-trip']);
+  else play(runs['road-trip']);
 })();
