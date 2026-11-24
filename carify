@@ -29,7 +29,7 @@ USAGE
 }
 
 # --- output --------------------------------------------------------------
-# Nightshift/Dayshift palette (RFS). Status goes to stderr; colour only on a TTY.
+# Cyclorama Dawn v2.1.0 palette (RFS). Status goes to stderr; colour only on a TTY.
 c_tag='' c_ok='' c_warn='' c_err='' c_mute='' c_off=''
 if [[ -t 2 && -z "${NO_COLOR:-}" && "${TERM:-}" != dumb ]]; then
     theme="${CARIFY_THEME:-}"
@@ -37,18 +37,18 @@ if [[ -t 2 && -z "${NO_COLOR:-}" && "${TERM:-}" != dumb ]]; then
         case "${COLORFGBG:-}" in *\;7|*\;15) theme=dayshift ;; *) theme=nightshift ;; esac
     fi
     if [[ "${COLORTERM:-}" == truecolor || "${COLORTERM:-}" == 24bit ]]; then
-        if [[ "$theme" == dayshift ]]; then
-            c_tag=$'\e[38;2;196;63;17m'  c_ok=$'\e[38;2;22;122;78m'   c_warn=$'\e[38;2;149;99;0m'
-            c_err=$'\e[38;2;176;32;48m'  c_mute=$'\e[38;2;107;111;120m'
+        if [[ "$theme" == dayshift || "$theme" == light ]]; then
+            c_tag=$'\e[38;2;173;61;10m'  c_ok=$'\e[38;2;18;114;71m'   c_warn=$'\e[38;2;136;88;0m'
+            c_err=$'\e[38;2;185;28;46m'  c_mute=$'\e[38;2;82;91;105m'
         else
-            c_tag=$'\e[38;2;255;106;61m' c_ok=$'\e[38;2;61;220;151m'  c_warn=$'\e[38;2;255;194;71m'
-            c_err=$'\e[38;2;255;110;122m' c_mute=$'\e[38;2;138;143;153m'
+            c_tag=$'\e[38;2;255;146;84m' c_ok=$'\e[38;2;61;220;151m'  c_warn=$'\e[38;2;255;194;71m'
+            c_err=$'\e[38;2;255;92;108m' c_mute=$'\e[38;2;179;181;192m'
         fi
     else
-        if [[ "$theme" == dayshift ]]; then
+        if [[ "$theme" == dayshift || "$theme" == light ]]; then
             c_tag=$'\e[38;5;166m' c_ok=$'\e[38;5;29m'  c_warn=$'\e[38;5;136m' c_err=$'\e[38;5;124m' c_mute=$'\e[38;5;243m'
         else
-            c_tag=$'\e[38;5;209m' c_ok=$'\e[38;5;79m'  c_warn=$'\e[38;5;215m' c_err=$'\e[38;5;210m' c_mute=$'\e[38;5;245m'
+            c_tag=$'\e[38;5;209m' c_ok=$'\e[38;5;79m'  c_warn=$'\e[38;5;215m' c_err=$'\e[38;5;204m' c_mute=$'\e[38;5;250m'
         fi
     fi
     c_off=$'\e[0m'

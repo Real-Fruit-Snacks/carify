@@ -1,6 +1,10 @@
-What changed and why, in a sentence or two.
+## Summary
 
-- [ ] Same change in `carify` and `carify.ps1`, or a reason it only applies to one
-- [ ] `tests/run.sh bash` passes
-- [ ] `tests/run.sh pwsh` passes, or I couldn't run it (say so)
-- [ ] New behaviour has a check in `tests/run.sh`
+- Plain summary of what changed and why.
+
+## Verification
+
+- [ ] Tested locally on target OS/runtime (note OS & version below)
+- [ ] CLI honors `NO_COLOR`, non-TTY stdout, and exit codes `0` / `1` / `2` (if applicable)
+- [ ] Web UI uses `rfs.css` + `rfs-components.css`, below-header scrollbars, and zero native `alert()`/`confirm()`/`prompt()` (if applicable)
+- [ ] Updated README / `cover.toml` if commands or screenshots changed

@@ -86,7 +86,7 @@ Get-ChildItem *.mkv | ForEach-Object { carify $_.FullName }
 |---|---|---|
 | `--max-height` / `-MaxHeight` | `720` | Largest frame height, 144 or more (up to 4320 in PowerShell), rounded down to an even number. Width limit is height × 16/9. Try `1080` if your unit handles it. |
 | `CARIFY_USB_DIR` | unset | Copy to this folder instead of looking for a MOVIES drive. On WSL, where the stick is a drive letter, set it to that drive, such as `/mnt/e`. |
-| `CARIFY_THEME` | `nightshift` | `dayshift` for light terminal backgrounds. Unset, the bash script picks dayshift when `COLORFGBG` says the background is light. |
+| `CARIFY_THEME` | `nightshift` | `dayshift` or `light` for light terminal backgrounds. Unset, the bash script picks light when `COLORFGBG` says the background is light. |
 | `NO_COLOR` | unset | Any non-empty value turns colour off |
 
 ## What it prints

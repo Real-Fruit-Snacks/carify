@@ -1,42 +1,108 @@
-// carify page: theme switch, install tabs, copy buttons, and the cluster replaying recorded runs.
-// Without JS the cluster shows road-trip.mkv finished. With reduced motion nothing plays by itself,
-// and picking a file shows its finished run at once.
+// carify page: Cyclorama Dawn v2.1.0 theme switch (Dark LX 263 default), install tabs,
+// copy buttons with semantic toasts, and the instrument cluster replaying recorded runs.
 (function () {
   var root = document.documentElement;
   var still = matchMedia('(prefers-reduced-motion: reduce)');
-  var light = matchMedia('(prefers-color-scheme: light)');
   var $ = function (id) { return document.getElementById(id); };
 
-  // ---- theme ----
-  function theme() { return root.dataset.theme || (light.matches ? 'dayshift' : 'nightshift'); }
-  function paint() {
-    var night = theme() === 'nightshift';
-    document.querySelector('meta[name="theme-color"]').content = night ? '#0C0D10' : '#F6F5F2';
-    $('theme').setAttribute('aria-label', 'Theme: ' + (night ? 'night' : 'day') + '. Switch to ' + (night ? 'day' : 'night'));
+  // ---- theme (Dark LX 263 default; Light LX 512 opt-in) ----
+  function currentTheme() {
+    return root.dataset.theme === 'light' ? 'light' : 'dark';
+  }
+  function applyTheme(next) {
+    if (next === 'light') {
+      root.dataset.theme = 'light';
+    } else {
+      delete root.dataset.theme;
+    }
+    var isDark = currentTheme() === 'dark';
+    var cs = document.querySelector('meta[name="color-scheme"]');
+    if (cs) cs.content = isDark ? 'dark' : 'light';
+    var tc = document.querySelector('meta[name="theme-color"]');
+    if (tc) tc.content = isDark ? '#050507' : '#F5F7F9';
+    var btn = $('theme');
+    if (btn) {
+      btn.setAttribute('aria-label', isDark ? 'Switch to Alabaster Day light mode' : 'Switch to Beacon Horizon dark mode');
+    }
   }
   $('theme').addEventListener('click', function (e) {
+    var next = currentTheme() === 'dark' ? 'light' : 'dark';
     var flip = function () {
-      root.dataset.theme = theme() === 'nightshift' ? 'dayshift' : 'nightshift';
-      try { localStorage.setItem('rfs-theme', root.dataset.theme); } catch (err) {}
-      paint();
+      applyTheme(next);
+      try { localStorage.setItem('rfs-theme', next); } catch (err) {}
     };
     if (!document.startViewTransition || still.matches) return flip();
     var x = e.clientX || innerWidth - 40, y = e.clientY || 32;
     var r = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
     document.startViewTransition(flip).ready.then(function () {
-      root.animate({ clipPath: ['circle(0 at ' + x + 'px ' + y + 'px)', 'circle(' + r + 'px at ' + x + 'px ' + y + 'px)'] },
-        { duration: 520, easing: 'cubic-bezier(.2,.7,.2,1)', pseudoElement: '::view-transition-new(root)' });
+      root.animate(
+        { clipPath: ['circle(0 at ' + x + 'px ' + y + 'px)', 'circle(' + r + 'px at ' + x + 'px ' + y + 'px)'] },
+        { duration: 520, easing: 'cubic-bezier(.2,.7,.2,1)', pseudoElement: '::view-transition-new(root)' }
+      );
     });
   });
-  light.addEventListener('change', paint);
-  paint();
+  window.addEventListener('storage', function (e) {
+    if (e.key === 'rfs-theme') {
+      applyTheme(e.newValue === 'light' || e.newValue === 'dayshift' ? 'light' : 'dark');
+    }
+  });
+  applyTheme(currentTheme());
+
+  // ---- semantic toast notification ----
+  var toastRegion = $('toast-region');
+  var toastSr = $('toast-sr');
+  function showToast(kind, tag, message) {
+    if (typeof document.ariaNotify === 'function') {
+      try { document.ariaNotify(message); } catch (e) {}
+    } else if (toastSr) {
+      toastSr.textContent = '';
+      toastSr.textContent = message;
+    }
+    if (!toastRegion) return;
+    if (typeof toastRegion.showPopover === 'function') {
+      try { if (!toastRegion.matches(':popover-open')) toastRegion.showPopover(); } catch (e) {}
+    }
+    var item = document.createElement('div');
+    item.className = 'rfs-toast is-' + kind;
+    var msg = document.createElement('span');
+    msg.className = 'rfs-toast-msg';
+    var k = document.createElement('span');
+    k.className = 'k';
+    k.textContent = tag + ' ';
+    msg.appendChild(k);
+    msg.appendChild(document.createTextNode(message));
+    var close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'rfs-toast-close';
+    close.setAttribute('aria-label', 'Dismiss notification');
+    close.textContent = '×';
+    item.appendChild(msg);
+    item.appendChild(close);
+    toastRegion.appendChild(item);
+
+    var remove = function () {
+      if (item.parentNode) item.parentNode.removeChild(item);
+      if (toastRegion.childElementCount === 0 && typeof toastRegion.hidePopover === 'function') {
+        try { toastRegion.hidePopover(); } catch (e) {}
+      }
+    };
+    close.addEventListener('click', remove);
+    var timer = setTimeout(function tick() {
+      if (item.contains(document.activeElement)) {
+        timer = setTimeout(tick, 1200);
+        return;
+      }
+      remove();
+    }, 2600);
+  }
 
   // ---- install tabs ----
   var tabs = [].slice.call(document.querySelectorAll('[role="tab"]'));
   function pick(tab) {
     tabs.forEach(function (t) {
       var on = t === tab;
-      t.setAttribute('aria-selected', on); t.tabIndex = on ? 0 : -1;
+      t.setAttribute('aria-selected', on);
+      t.tabIndex = on ? 0 : -1;
       $(t.getAttribute('aria-controls')).hidden = !on;
       if (on) $('copy').dataset.copy = $(t.getAttribute('aria-controls')).textContent.trim();
     });
@@ -50,17 +116,22 @@
   });
   if (/Win/.test(navigator.platform || '')) pick(tabs[1]);
 
-  // ---- copy ----
+  // ---- copy buttons ----
   document.querySelectorAll('[data-copy]').forEach(function (b) {
     var label = b.textContent;
     b.addEventListener('click', function () {
-      var done = function (ok) { b.textContent = ok ? 'Copied' : 'Select it'; clearTimeout(b._t); b._t = setTimeout(function () { b.textContent = label; }, 1600); };
+      var done = function (ok) {
+        b.textContent = ok ? '[ok] Copied' : 'Select text';
+        showToast(ok ? 'ok' : 'warn', ok ? '[ok]' : '[!]', ok ? 'Command copied to clipboard.' : 'Copy manually from the code block.');
+        clearTimeout(b._t);
+        b._t = setTimeout(function () { b.textContent = label; }, 1800);
+      };
       if (navigator.clipboard) navigator.clipboard.writeText(b.dataset.copy).then(function () { done(true); }, function () { done(false); });
       else done(false);
     });
   });
 
-  // ---- the cluster ----
+  // ---- the instrument cluster ----
   var data = window.CARIFY_RUNS;
   if (!data || !$('term')) return;
   var runs = {};
@@ -88,7 +159,6 @@
     if (moved) { el.style.setProperty('--g', ang(k, from).toFixed(2) + 'deg'); el.setAttribute('data-ghost', ''); }
     else el.removeAttribute('data-ghost');
   }
-  // The colour carify gives a status line: say() is Ember, ok() is Mint, warn() is Amber.
   function kind(line) {
     var label = line.slice(0, 6).trim(), rest = line.slice(6).trim();
     if (/^(frame|size)=/.test(line)) return 'progress';
@@ -137,7 +207,6 @@
     term.innerHTML = cmd(r, '', true);
     var t0;
     if (ignition) {
-      // The gauge sweep a car does when you switch it on: full scale and back, then the file's values.
       needle('v', -data.sweep, 0); needle('a', -data.sweep, 0);
       at(40, function () { needle('v', data.sweep, 0.7, 'cubic-bezier(.45,0,.55,1)'); needle('a', data.sweep, 0.7, 'cubic-bezier(.45,0,.55,1)'); });
       at(760, function () { needle('v', ang('v', r.vin), 0.7); needle('a', ang('a', r.ain), 0.7); });

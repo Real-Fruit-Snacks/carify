@@ -32,12 +32,12 @@ DOCS = os.path.normpath(os.path.join(HERE, ".."))
 FONTS = os.path.join(DOCS, "fonts")
 NL = "\n"
 
-# RFS Nightshift and Dayshift, and nothing else
+# Cyclorama Dawn v2.1.0 (Steel & Beacon Orange + Signal Crimson Fault)
 THEMES = {
-    "dark": dict(plate="#1A1D24", face="#070809", hub="#13151A", line="#262A33", strong="#636872", ink="#E8E6E1", mute="#8A8F99",
-                 ember="#FF6A3D", amber="#FFC247", mint="#3DDC97", rasp="#F06292", glow=True),
-    "light": dict(plate="#FFFFFF", face="#ECEAE4", hub="#FFFFFF", line="#D6D3CB", strong="#89867F", ink="#1A1B1E", mute="#666A73",
-                  ember="#C03B0A", amber="#925F00", mint="#15794D", rasp="#B0306A", glow=False),
+    "dark": dict(plate="#0C0C10", face="#050507", hub="#14141A", line="#2A2C35", strong="#676B78", ink="#F4F5F8", mute="#B3B5C0",
+                 steel="#74B8E8", ember="#F06E2B", beacon_ink="#FF9254", amber="#FFC247", mint="#3DDC97", rasp="#FF5C6C", glow=False),
+    "light": dict(plate="#FFFFFF", face="#E9EEF3", hub="#F5F7F9", line="#D2DAE2", strong="#6E7784", ink="#0D1016", mute="#525B69",
+                  steel="#164669", ember="#BD4811", beacon_ink="#AD3D0A", amber="#885800", mint="#127247", rasp="#B91C2E", glow=False),
 }
 
 # --- the dials --------------------------------------------------------------------------------
@@ -131,10 +131,10 @@ def summary(run):
 # --- text as paths ----------------------------------------------------------------------------
 _fonts, _glyphs = {}, {}
 FACES = {
-    "cond": ("saira-latin-var.woff2", {"wght": 600, "wdth": 75}),
-    "condb": ("saira-latin-var.woff2", {"wght": 700, "wdth": 75}),
-    "num": ("saira-latin-var.woff2", {"wght": 700, "wdth": 100}),
-    "mono": ("jetbrains-mono-latin-var.woff2", {"wght": 400}),
+    "cond": ("albert-sans-latin.woff2", {"wght": 600}),
+    "condb": ("big-shoulders-stencil-latin.woff2", {"wght": 700}),
+    "num": ("big-shoulders-stencil-latin.woff2", {"wght": 800}),
+    "mono": ("azeret-mono-latin.woff2", {"wght": 400}),
 }
 
 
@@ -283,19 +283,17 @@ def build_svg(theme, runs, recorded):
 
     o = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" role="img">']
     o.append(f"<style>{base}@media (prefers-reduced-motion:no-preference){{{''.join(css)}{anim}}}</style>")
-    o.append(f'<defs><radialGradient id="face"><stop offset="0" stop-color="{c["hub"]}"/><stop offset="1" stop-color="{c["face"]}"/></radialGradient></defs>')
-    if c["glow"]:
-        o.append('<defs><filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4" result="b"/>'
-                 '<feComponentTransfer in="b" result="g"><feFuncA type="linear" slope=".8"/></feComponentTransfer>'
-                 '<feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>')
-    glow = ' filter="url(#glow)"' if c["glow"] else ""
+    o.append(f'<defs><radialGradient id="face"><stop offset="0" stop-color="{c["hub"]}"/><stop offset="1" stop-color="{c["face"]}"/></radialGradient>'
+             f'<linearGradient id="horizon" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="{c["steel"]}"/><stop offset="1" stop-color="{c["ember"]}"/></linearGradient></defs>')
+    glow = ""
 
     # the plate and its legends
-    o.append(f'<rect x="0.5" y="0.5" width="{W - 1}" height="{H - 1}" rx="26" fill="{c["plate"]}" stroke="{c["line"]}"/>')
+    o.append(f'<rect x="0.5" y="0.5" width="{W - 1}" height="{H - 1}" rx="16" fill="{c["plate"]}" stroke="{c["line"]}"/>')
+    o.append(f'<rect x="16" y="1" width="{W - 32}" height="3" rx="1.5" fill="url(#horizon)"/>')
     ver = recorded["carify"].upper()
     ff, osv = where(recorded)
-    o.append(text(ver, 40, 50, 15, "condb", c["mute"], ls=0.2))
-    o.append(text(f"RECORDED RUN · {osv.upper()} · FFMPEG {ff}", W - 40, 50, 15, "cond", c["mute"], ls=0.14, anchor="end"))
+    o.append(text(ver, 40, 50, 18, "condb", c["ink"], ls=0.1))
+    o.append(text(f"RECORDED RUN · {osv.upper()} · FFMPEG {ff}", W - 40, 50, 13, "mono", c["mute"], ls=0.04, anchor="end"))
 
     # the dials
     for key in ("v", "a"):

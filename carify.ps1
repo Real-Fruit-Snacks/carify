@@ -50,16 +50,16 @@ $CarifyVersion = '1.2.0'
 if ($Version) { Write-Output "carify $CarifyVersion"; exit 0 }
 
 # --- output ----------------------------------------------------------------
-# Nightshift/Dayshift palette (RFS). Status goes to stderr. ANSI colour only
+# Cyclorama Dawn v2.1.0 palette (RFS). Status goes to stderr. ANSI colour only
 # where the console understands it (PowerShell 7, Windows Terminal, VS Code).
 $esc = [char]27
 $useColor = -not $env:NO_COLOR -and -not [Console]::IsErrorRedirected -and
     ($PSVersionTable.PSVersion.Major -ge 7 -or $env:WT_SESSION -or $env:TERM_PROGRAM)
 $palette = @{
-    nightshift = @{ tag = '255;106;61'; ok = '61;220;151'; warn = '255;194;71'; err = '255;110;122' }
-    dayshift   = @{ tag = '196;63;17';  ok = '22;122;78';  warn = '149;99;0';   err = '176;32;48' }
+    nightshift = @{ tag = '255;146;84'; ok = '61;220;151'; warn = '255;194;71'; err = '255;92;108' }
+    dayshift   = @{ tag = '173;61;10';  ok = '18;114;71';  warn = '136;88;0';   err = '185;28;46' }
 }
-$theme = if ($env:CARIFY_THEME -eq 'dayshift') { $palette.dayshift } else { $palette.nightshift }
+$theme = if ($env:CARIFY_THEME -in @('dayshift', 'light')) { $palette.dayshift } else { $palette.nightshift }
 
 function Write-Status([string]$Label, [string]$Text, [string]$Kind = 'tag') {
     $pad = $Label.PadRight(6)

@@ -360,7 +360,7 @@ PS
         env -u NO_COLOR -u WT_SESSION -u TERM_PROGRAM -u CARIFY_THEME -u CARIFY_TEST_PS_MAJOR "$@" \
             "$target" -NoProfile -ExecutionPolicy Bypass -File console-run.ps1 "$root/carify.ps1" 2>&1 | tr -d '\r'
     }
-    night_err=$'\e[38;2;255;110;122m' day_err=$'\e[38;2;176;32;48m'
+    night_err=$'\e[38;2;255;92;108m' day_err=$'\e[38;2;185;28;46m'
     check "console, Windows Terminal: nightshift colours" grep -qF "$night_err" <<< "$(console_err WT_SESSION=1)"
     check "console, VS Code terminal: coloured"           grep -qF "$night_err" <<< "$(console_err TERM_PROGRAM=vscode)"
     check "console, PowerShell 7: coloured"               grep -qF "$night_err" <<< "$(console_err CARIFY_TEST_PS_MAJOR=7)"
