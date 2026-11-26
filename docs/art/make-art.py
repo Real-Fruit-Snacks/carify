@@ -6,7 +6,7 @@ Writes:
   docs/index.html, between the art:* markers         the cluster in its finished road-trip state
                                                     (what the page shows without JS), the runs table
                                                     and the timings quoted in the text
-  README.md, between the art:* markers               road-trip.mkv's output and the runs table
+  docs/USAGE.md, between the art:* markers           road-trip.mkv's output and the runs table
 
 The dials are carify's limits drawn as Signal Crimson redlines: frame height (720, the --max-height
 default) and audio channels (2). Both the animated README SVG and the project page use a 2-bay
@@ -834,10 +834,10 @@ def main():
         patch(page, f"t-{name}", f"{runs[name]['seconds']:g}&nbsp;s")
     print(f"patched {os.path.relpath(page)}")
 
-    readme = os.path.normpath(os.path.join(DOCS, "..", "README.md"))
-    patch(readme, "readme-run", readme_run(runs["road-trip"]))
-    patch(readme, "readme-runs", readme_table(runs))
-    print(f"patched {os.path.relpath(readme)}")
+    usage = os.path.join(DOCS, "USAGE.md")
+    patch(usage, "readme-run", readme_run(runs["road-trip"]))
+    patch(usage, "readme-runs", readme_table(runs))
+    print(f"patched {os.path.relpath(usage)}")
 
 
 if __name__ == "__main__":

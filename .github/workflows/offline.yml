@@ -188,7 +188,7 @@ jobs:
           $v = & $py -c "import sys;print('.'.join(map(str,sys.version_info[:3])))"
           if ($v -ne $env:PYTHON_VERSION) { throw ".venv has Python $v, not $env:PYTHON_VERSION" }
           & $py -m pip list --disable-pip-version-check
-          $files = 'docs\assets\cluster-dark.svg', 'docs\assets\cluster-light.svg', 'docs\runs.js', 'docs\index.html', 'README.md'
+          $files = 'docs\assets\cluster-dark.svg', 'docs\assets\cluster-light.svg', 'docs\runs.js', 'docs\index.html', 'docs\USAGE.md'
           $before = $files | ForEach-Object { (Get-FileHash -LiteralPath $_).Hash }
           & $py docs/art/make-art.py
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
