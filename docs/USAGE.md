@@ -33,7 +33,7 @@ What the installers change, and how to undo it:
 
 - `install.sh` puts `carify` in `~/.local/bin`, and tells you if that folder isn't on your PATH or ffmpeg is missing. To uninstall, delete `~/.local/bin/carify`.
 - `install.ps1` puts `carify.ps1` in `$HOME\bin` and adds that folder to your user PATH. It also sets the execution policy to `RemoteSigned` for your user if the saved one was `Restricted` or `Undefined`, so local scripts can run. To uninstall, delete `$HOME\bin\carify.ps1` and remove `$HOME\bin` from your user PATH (and, if you like, `Set-ExecutionPolicy -Scope CurrentUser Undefined`).
-- Both read `CARIFY_BIN` (install folder), `CARIFY_REF` (a tag such as `v1.2.0` instead of `main`) and `CARIFY_URL` (download the script from a mirror).
+- Both read `CARIFY_BIN` (install folder), `CARIFY_REF` (a tag such as `v1.3.0` instead of `main`) and `CARIFY_URL` (download the script from a mirror).
 
 ### Offline
 
@@ -129,7 +129,7 @@ The four test clips are ffmpeg's `testsrc2` picture with a sine tone: three each
 
 ## Tested On
 
-- Ubuntu 24.04 · bash 5.2 · ffmpeg 6.1.1 (all 76 checks `tests/run.sh` runs for the bash script)
+- Ubuntu 24.04 · bash 5.2 · ffmpeg 6.1.1 (all 106 checks in `tests/run.sh` plus 31 dry-run checks in `tests/dry-run.sh`)
 - CI on every push: Ubuntu (bash, PowerShell 7), macOS (bash 5 and the system `/bin/bash` 3.2), Windows (PowerShell 7 and Windows PowerShell 5.1)
 - *Not* tested: a list of head units by model year. The limits above are the common denominator that has worked across Uconnect generations, not a published spec. If a file played or failed on your car, [an issue](https://github.com/Real-Fruit-Snacks/carify/issues) saying which model year and head unit, with carify's output, is the data this project is short of.
 

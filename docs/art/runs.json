@@ -1,7 +1,7 @@
 {
  "recorded": {
   "bash": "5.2.21(1)-release",
-  "carify": "carify 1.2.0",
+  "carify": "carify 1.3.0",
   "clips": "30 s of ffmpeg's testsrc2 picture and a sine tone",
   "ffmpeg": "ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers",
   "os": "Ubuntu 24.04.5 LTS"
